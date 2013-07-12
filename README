@@ -1,0 +1,56 @@
+RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY
+================================================================================
+
+WORKFLOW
+--------------------------------------------------------------------------------
+1) Wiggle files are converted to Mutalyzer position converter batch files using
+the wig2batchfile.php script.
+Usage: ./wig2batchfile.php WIG_FILE
+It can create one mutalyzer file for multiple Wiggle files, but the analysis
+script does not support that, so then they would need to be split afterwards.
+
+2) The position converter batch files are manually loaded into Mutalyzer:
+https://test.mutalyzer.nl/batchPositionConverter
+
+3) When done, the results are downloaded and analyzed using the
+analyze_codon_positions.php script, that checks if the ribosomes have indeed
+been stopped at the start sites.
+Usage:
+./analyze_codon_positions.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
+
+Example:
+./analyze_codon_positions.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
+  mm10_gene_list.txt +
+
+The script does the following things:
++ Read out the coverage information from the Wiggle file
++ Read the gene list to find out which genes (transcripts, actually) are on
+  which strand
++ Read the Mutalyzer result file to see which locations map to which
+  transcripts, determining the position within the transcript
+  * Filter low coverage positions (< 3)
+  * Mappings on non-coding transcripts are ignored
+  * Mappings on transcripts on the other strand are ignored
+  * Filter positions without transcript mapping
+  * Filter positions with only intronic mapping
+  * Filter positions too far from transcript start or stop sites
+    (> 500bp)
+  * The remaining possible mappings are processed.
+    - 5' UTR or 3' UTR mappings, while exonic mappings are also
+      available, are discarded.
+    - If there are 5' UTR and 3' UTR mappings, but none in the exon
+      region, we assume an intergenic situation and if one of the two
+      positions is clearly closer to the translated region than the
+      other (> 100bp), then the closest position is picked.
+      If not, the position is reported.
+    - After this, all mappings are counted by their coverage and
+      reported.
+
+Possible to do:
+- Multiple 5' UTR *or* multiple 3' UTR mappings are all counted if these
+are the only mappings. Perhaps we should pick the closest, like as if
+both UTR mappings were present.
+
+
+
+
