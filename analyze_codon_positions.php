@@ -16,9 +16,11 @@
  *************/
 
 $_SETT =
- array(
-    'version' => '0.1',
- );
+    array(
+        'version' => '0.1',
+        'max_upstream' => 500,
+        'max_downstream' => 500,
+    );
 
 echo 'CodonPositionAnalyzer v.' . $_SETT['version'] . "\n";
 
@@ -82,7 +84,6 @@ $aTranscriptFile = file($aFiles[2]);
 unset($aTranscriptFile[0]); // Header.
 $aTranscripts = array();
 print('Parsing gene file... ');
-flush();
 foreach ($aTranscriptFile as $sLine) {
     list($sTranscript, $sStrand, $sGene) = explode("\t", $sLine);
     $aTranscripts[$sTranscript] = $sStrand; // We'll ignore the gene name for now.
@@ -201,9 +202,9 @@ foreach ($aMutalyzerResults as $sLine) {
 
         // Now filter distances, more than 500bp up- or downstream is too much.
         foreach ($aCodonOptions as $nKey => $sPosition) {
-            if ($sPosition{0} == '-' && $sPosition < -500) {
+            if ($sPosition{0} == '-' && $sPosition < -$_SETT['max_upstream']) {
                 unset($aCodonOptions[$nKey]);
-            } elseif ($sPosition{0} == '*' && substr($sPosition, 1) > 500) {
+            } elseif ($sPosition{0} == '*' && substr($sPosition, 1) > $_SETT['max_upstream']) {
                 unset($aCodonOptions[$nKey]);
             }
         }
