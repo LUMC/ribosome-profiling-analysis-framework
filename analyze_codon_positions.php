@@ -7,7 +7,7 @@
  * and presents the results.
  *
  * Created     : 2013-04-16
- * Modified    : 2013-05-08
+ * Modified    : 2013-08-08
  * Version     : 0.1
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
@@ -18,6 +18,7 @@
 $_SETT =
     array(
         'version' => '0.1',
+        'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
     );
@@ -54,12 +55,11 @@ function sortPositions ($key1, $key2) {
 
 
 // Prepare wiggle file, read into memory.
-$aWiggleFile = file($aFiles[1]);
+$aWiggleFile = file($aFiles[1], FILE_IGNORE_NEW_LINES);
 $aCoverages = array();
 $nChroms = 0;
 $sChrom = '';
 print('Parsing Wiggle file... ');
-flush();
 foreach ($aWiggleFile as $sLine) {
     if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
         // Chromosome found.
@@ -80,7 +80,7 @@ foreach ($aWiggleFile as $sLine) {
 print('done, loaded ' . $nChroms . ' chromosomes with ' . count($aCoverages) . ' positions in memory.' . "\n");
 
 // Prepare gene file.
-$aTranscriptFile = file($aFiles[2]);
+$aTranscriptFile = file($aFiles[2], FILE_IGNORE_NEW_LINES);
 unset($aTranscriptFile[0]); // Header.
 $aTranscripts = array();
 print('Parsing gene file... ');
@@ -105,7 +105,6 @@ $aUnknownTranscripts = array();
 $aMutalyzerResults = file($aFiles[0]);
 unset($aMutalyzerResults[0]); // Header.
 print('Parsing mutalyzer results file... ');
-flush();
 foreach ($aMutalyzerResults as $sLine) {
     $aLine = explode("\t", rtrim($sLine)); // Removing whitespace from the right.
     $sVariant = array_shift($aLine);
@@ -116,7 +115,7 @@ foreach ($aMutalyzerResults as $sLine) {
     }
     $nCoverage = $aCoverages[$sVariant];
     // Filter for low coverage.
-    if ($aCoverages[$sVariant] < 3) {
+    if ($aCoverages[$sVariant] < $_SETT['min_coverage']) {
         $nFiltered ++;
         continue;
     }
@@ -152,6 +151,7 @@ foreach ($aMutalyzerResults as $sLine) {
             } elseif (!preg_match('/^([NX][RM]_\d+)\.\d+:(.+)/', $sVOT, $aRegs)) {
                 die('Cannot parse variant ' . $sVOT . "\n");
             }
+
             $sTranscript = $aRegs[1];
             $sPosition = $aRegs[2];
             // Check strand and then check if position is exonic. If so, store position!
@@ -201,11 +201,11 @@ foreach ($aMutalyzerResults as $sLine) {
         }
 
         // Now filter distances, more than 500bp up- or downstream is too much.
-        foreach ($aCodonOptions as $nKey => $sPosition) {
+        foreach ($aCodonOptions as $sTranscript => $sPosition) {
             if ($sPosition{0} == '-' && $sPosition < -$_SETT['max_upstream']) {
-                unset($aCodonOptions[$nKey]);
-            } elseif ($sPosition{0} == '*' && substr($sPosition, 1) > $_SETT['max_upstream']) {
-                unset($aCodonOptions[$nKey]);
+                unset($aCodonOptions[$sTranscript]);
+            } elseif ($sPosition{0} == '*' && substr($sPosition, 1) > $_SETT['max_downstream']) {
+                unset($aCodonOptions[$sTranscript]);
             }
         }
         // Check if we filtered it out completely now.
@@ -218,7 +218,7 @@ foreach ($aMutalyzerResults as $sLine) {
         // Check if the 5' and 3' flags are still correct.
         $b5UTR = false;
         $b3UTR = false;
-        foreach ($aCodonOptions as $nKey => $sPosition) {
+        foreach ($aCodonOptions as $sPosition) {
             if ($sPosition{0} == '-' && $sPosition < -15) {
                 $b5UTR = true;
             } elseif ($sPosition{0} == '*') {
@@ -248,10 +248,10 @@ foreach ($aMutalyzerResults as $sLine) {
 
         // If we have 5' and 3'UTR values, but no exonic values, compare the 5' and 3' positions.
         if ($b5UTR && !$bExonic && $b3UTR) {
-            $nMin = -1000;
-            $nMax = 1000;
+            $nMin = -$_SETT['max_upstream'];
+            $nMax = $_SETT['max_downstream'];
             // Determine the 5' and 3' positions closest to the translation start and end sites.
-            foreach ($aCodonOptions as $nKey => $sPosition) {
+            foreach ($aCodonOptions as $sPosition) {
                 if ($sPosition{0} == '*') {
                     // 3'
                     $nMax = min($nMax, substr($sPosition, 1));
@@ -263,17 +263,17 @@ foreach ($aMutalyzerResults as $sLine) {
             // Calculate the difference between each other.
             if (abs($nMin) < $nMax && ($nMax + $nMin) > 100) {
                 // The 5' position is closer to the ATG than the 3' is to the TGA.
-                foreach ($aCodonOptions as $nKey => $sPosition) {
+                foreach ($aCodonOptions as $sTranscript => $sPosition) {
                     if ($sPosition{0} == '*') {
-                        unset($aCodonOptions[$nKey]);
+                        unset($aCodonOptions[$sTranscript]);
                     }
                 }
                 $b3UTR = false;
             } elseif (abs($nMin) > $nMax && ($nMax + $nMin) < -100) {
                 // The 3' position is closer to the TGA than the 5' is to the ATG.
-                foreach ($aCodonOptions as $nKey => $sPosition) {
+                foreach ($aCodonOptions as $sTranscript => $sPosition) {
                     if ($sPosition{0} == '-') {
-                        unset($aCodonOptions[$nKey]);
+                        unset($aCodonOptions[$sTranscript]);
                     }
                 }
                 $b5UTR = false;
