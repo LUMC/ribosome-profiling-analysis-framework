@@ -6,18 +6,24 @@
  * the position converter van be used.
  *
  * Created     : 2013-04-10
- * Modified    : 2013-04-16
- * Version     : 0.1
+ * Modified    : 2013-08-13
+ * Version     : 0.2
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
+ * Changelog   : 0.2
+ *               While generating the batchfile, the wiggle file is already
+ *               filtered for low coverage. This results in faster conversion,
+ *               smaller files, and also less calculation time for Mutalyzer.
+ *
  *************/
 
 $_SETT =
- array(
-    'version' => '0.1',
- );
+    array(
+        'version' => '0.2',
+        'min_coverage' => 3,
+    );
 
 echo 'WIG2BATCHFILE v.' . $_SETT['version'] . "\n";
 
@@ -55,7 +61,7 @@ if (!$fOut) {
     die('Unable to open file for writing.' . "\n\n");
 }
 
-$nLines = 0;
+$nLines = $nFiltered = 0;
 foreach ($aFiles as $sFile) {
     $aFile = file($sFile);
     $sChrom = '';
@@ -73,10 +79,14 @@ foreach ($aFiles as $sFile) {
         }
         if ($sChrom) {
             list($nPos, $nCoverage) = explode("\t", $sLine);
-            fputs($fOut, $sChrom . ':g.' . $nPos . 'del' . "\r\n");
-            $nLines ++;
+            if ($nCoverage >= $_SETT['min_coverage']) {
+                fputs($fOut, $sChrom . ':g.' . $nPos . 'del' . "\r\n");
+                $nLines ++;
+            } else {
+                $nFiltered ++;
+            }
         }
     }
 }
-die('Done, ' . $nLines . ' lines written.' . "\n");
+die('Done, ' . $nLines . ' lines written (' . $nFiltered . ' filtered, coverage too low).' . "\n");
 ?>
