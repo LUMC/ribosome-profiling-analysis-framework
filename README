@@ -1,20 +1,59 @@
-RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY
+RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY AND ALTERNATIVE ORFs
 ================================================================================
 
 WORKFLOW
 --------------------------------------------------------------------------------
-1) Wiggle files are converted to Mutalyzer position converter batch files using
+If you're doing alignment on the genome only, skip to 5).
+
+1) If you're doing alignment on the transcriptome, you end up with sam files.
+The sam files are first packed, reducing them in size and grouping the reads
+together to generate a file that sums the coverage per transcript per position.
+For this, use the pack_sam_files.php file.
+Usage: ./pack_sam_files.php SAM_FILE1 [SAM_FILE2 [SAM_FILE3 [...]]]
+
+2) The packed sam files can be used to run some statistics. Currently available
+is packed_sam2coverage_per_gene.php.
+Usage: ./packed_sam2coverage_per_gene.php path_to_mm10_gene_list.txt \
+           PACKED_SAM_FILE1 [ PACKED_SAM_FILE2 [ ... ]]
+
+It produces a file with, per SAM file, mentioned which transcripts can not be
+matched to a gene, listing the top 5 unknown transcripts based on their coverage
+and finally, a large table where the samples are presented as columns, and on
+each line the genes are given with the coverage in each sample. The genes are
+sorted on total coverage in all samples together.
+
+Other statistics can be run directly on the packed SAM files, for instance how
+many reads are mapped to non-coding reads.
+
+3) When not yet available, a file needs to be created that contains the genomic
+positions of all exons of the transcripts from the reference sequence. This can
+then be used for the genomic alignment.
+See help/mm10_transcript_positions_create.txt for more information.
+
+4) The packed SAM files are used to generate Wiggle files. For this, use the
+packed_sam2wiggle.php script, which needs the transcript positions file descri-
+bed in 3).
+Usage: ./packed_sam2wiggle.php PACKED_SAM_FILE1 [PACKED_SAM_FILE2 [...]]
+
+During this process, the NR and XR transcripts are filtered out.
+
+5) Wiggle files are converted to Mutalyzer position converter batch files using
 the wig2batchfile.php script.
 Usage: ./wig2batchfile.php WIG_FILE
 It can create one mutalyzer file for multiple Wiggle files, but the analysis
 script does not support that, so then they would need to be split afterwards.
 
-2) The position converter batch files are manually loaded into Mutalyzer:
+6) The position converter batch files are manually loaded into Mutalyzer:
 https://test.mutalyzer.nl/batchPositionConverter
 
-3) When done, the results are downloaded and analyzed using the
-analyze_codon_positions.php script, that checks if the ribosomes have indeed
-been stopped at the start sites.
+7) When done, the results are downloaded from Mutalyzer. If you're not sure
+anymore which results file belongs to which batchfile, you can match these files
+by using the match_mutalyzer_output_to_batchfile.sh script.
+Usage:
+./match_mutalyzer_output_to_batchfile.sh <MUTALYZER_OUTPUT_FILES> <BATCH_FILES>
+
+The results files can be analyzed using the analyze_codon_positions.php script,
+that checks if the ribosomes have indeed been stopped at the start sites.
 Usage:
 ./analyze_codon_positions.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
 

@@ -21,7 +21,8 @@ $_SETT =
         'terminal_width' => 150,
     );
 
-echo 'PackSamFiles v.' . $_SETT['version'] . "\n";
+echo 'PackSamFiles v.' . $_SETT['version'] . "\n" .
+     'PLEASE DO NOT USE THIS SCRIPT ON THE I DRIVE; IT\'S INCREDIBLY SLOW THERE.' . "\n\n";
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
@@ -87,7 +88,7 @@ foreach ($aFiles as $sFile) {
     print("\n" .
           'Done reading ' . $nLine . ' lines, writing output... ');
 
-    // Sorting the results would be nice, but perhaps really unneccesary.
+    // Sorting the results would be nice, but perhaps really unnecessary.
     ksort($aData);
     foreach ($aData as $sTranscript => $aTranscript) {
         ksort($aTranscript);
