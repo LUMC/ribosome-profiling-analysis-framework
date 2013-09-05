@@ -1,0 +1,192 @@
+The fasta files that were used as reference sequence to align the ribosome
+profiling reads to the transcriptome, are aligned to the genome to get the
+positions we need to be able to map the ribosome profiling reads to the genome.
+Mutalyzer was not able to do this, because of a bug that prevented using n.
+positions. The seq_gene.md file downloaded from the NCBI was not able to do this
+because of the NM not always perfectly matching the genome, and that file did
+not indicate those differences, resulting in incorrect results.
+
+The SAM files with the results of the alignment of the transcript fasta sequen-
+ces are modified to shown only one possible alignment. However, there are still
+some transcripts that show two alignments. These are considered "chimeric"
+alignments and form an exception because the aligner can not choose between
+them. However, none of these transcripts are very important;
+
+$ grep -v "^@" RefseqFASTA_mapped-to-genome_maxpath_2.sam | cut -d "|" -f 4 \
+    | sort | uniq -c | grep -vE "^\s+1\s"
+
+returns:
+      2 NM_001004145.2
+      2 NM_001013804.1
+      2 NM_001013828.2
+      2 NM_001039241.2
+      2 NM_001104634.1
+      2 NM_001163415.1
+      2 NM_001199242.1
+      2 NM_001199243.1
+      2 NM_001199332.1
+      2 NM_007849.1
+      2 NM_008848.1
+      2 NM_009251.1
+      2 NM_009744.3
+      2 NM_010381.2
+      2 NM_011087.1
+      2 NM_011093.1
+      2 NM_011154.2
+      2 NM_021545.1
+      2 NM_031156.3
+      2 NM_133362.2
+      2 NM_177010.3
+      2 NM_181729.2
+      2 NR_015516.2
+      2 NR_102721.1
+      2 XM_001475610.2
+      2 XM_001478962.2
+      2 XM_001479371.4
+      2 XM_001481236.2
+      2 XM_003085853.1
+      2 XM_003086066.2
+      2 XM_003086309.1
+      2 XM_003086465.2
+      2 XM_003086957.1
+      2 XM_003688754.2
+      2 XM_003688760.2
+      2 XM_003688763.2
+      2 XM_003688766.2
+      2 XM_003688822.2
+      2 XM_003689214.2
+      2 XM_003689220.1
+      2 XM_003689223.1
+      2 XM_003689226.2
+      2 XM_003689273.2
+      2 XM_003689292.1
+      2 XM_003689330.1
+      2 XM_003689479.2
+      2 XM_003689480.1
+      2 XM_003945685.1
+      2 XM_003945730.1
+      2 XM_003945733.1
+      2 XM_003945734.1
+      2 XM_003945996.1
+      2 XM_003945997.1
+      2 XM_003945998.1
+      2 XM_003945999.1
+      2 XM_003946004.1
+      2 XM_003946023.1
+      2 XM_003946049.1
+      2 XM_003946097.1
+      2 XM_003946120.1
+      2 XM_003946185.1
+      2 XM_003946197.1
+      2 XM_003946198.1
+      2 XM_003946318.1
+      2 XM_003946324.1
+      2 XM_003946342.1
+      2 XM_003946349.1
+      2 XM_003946383.1
+      2 XM_003946385.1
+      2 XM_003946405.1
+      2 XM_003946412.1
+      2 XM_003946431.1
+      2 XM_003946435.1
+      2 XM_003946436.1
+      2 XM_003946437.1
+      2 XM_003946438.1
+      2 XM_003946442.1
+      2 XM_003946443.1
+      2 XM_003946444.1
+      2 XM_359206.5
+      2 XM_905449.6
+      2 XM_914307.5
+      2 XM_918592.5
+      2 XM_975798.4
+      2 XM_992322.4
+      2 XR_106126.2
+      2 XR_106953.2
+      2 XR_140424.2
+      2 XR_140628.2
+      2 XR_140631.2
+      2 XR_141468.2
+      2 XR_141665.1
+      2 XR_141992.2
+      2 XR_142046.2
+      2 XR_142047.1
+      2 XR_142388.1
+      2 XR_142439.1
+      2 XR_168852.1
+
+And they show crappy alignment, as you can see by running:
+
+$ grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
+    RefseqFASTA_mapped-to-genome_maxpath_2.sam | sort | less -SM
+
+Lots of clipping on either side; the multiple alignments were often in different
+chromosomes, also.
+
+Searching the SAM files of the ribosome profiling experiment for these NMs show
+very little reads mapped to them:
+
+$ for file in *.sam; do echo $file; grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
+    $file | wc -l; done
+
+merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+364
+merged_A2.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+361
+merged_A3.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+367
+merged_C1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+147
+merged_C2.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+213
+merged_C3.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+363
+
+Looking at the alignments, there is no way we can choose out of the two. Some-
+times we don't even understand why they are split, since they seem to consist of
+two subsequent mappings, but since very little reads map to these transcripts,
+we choose to ignore them instead of trying to fix (?) the aligner.
+
+
+
+Also, the script parsing the CIGAR string encounters transcripts with deletions
+and insertions compared to the genome.
+It is not reliably possible to deal with these. So we'll remove them from the
+FASTA sequences and re-align all the reads.
+
+How many transcripts (XM and NM check):
+$ grep -E "(N|X)M_" RefseqFASTA_mapped-to-genome_maxpath_2.sam | cut -f 1,6 | grep -E "D|I" | cut -d "|" -f 4 > problematic_transcripts.txt
+
+919 transcripts
+
+So how many reads align currently to these transcripts?
+$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts.txt merged_A1.fastq.trunc.transcriptome.sam_mappedforward.sam_mappedforward_M25.sam_6col | wc -l
+
+33664
+
+(these reads are not necessarily lost; we could regain them by genome alignment)
+
+So how many of these will we have issues with with the genome alignment, since
+the ATG is too close to an exon/intron border?
+
+$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts.txt ./seq_gene_mouse.md.distance_intron_to_ATG.txt | wc -l
+65
+
+How many reads?
+
+$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts_no_chance_for_genomic_alignment.txt merged_A1.fastq.trunc.transcriptome.sam_mappedforward.sam_mappedforward_M25.sam_6col | wc -l
+1362
+
+HOWEVER, currently the distance_to_ATG file does NOT include genes where the
+exon/intron boundary is closely 5' of the ATG!
+This script first needs to be improved.
+
+
+
+All transcripts with mapping issues to the genome are put in a separate file
+created when running the script. This file is named
+transcriptome_alignment_unsupported_transcripts.txt.
+For each transcript, the reason why it was rejected is put in the second column.
+
+The output file mm10_transcript_positions.txt contains the transcript ID, the
+chromosome, the strand, and the exon positions encoded in JSON.
