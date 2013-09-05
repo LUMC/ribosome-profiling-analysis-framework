@@ -48,8 +48,8 @@ foreach ($aFiles as $sFile) {
     if (!$fIn) {
         die('Unable to open ' . $sFile . '.' . "\n\n");
     }
-    $sFileSize = filesize($sFile);
-    $sBytesRead = 0;
+    $nFileSize = filesize($sFile);
+    $nBytesRead = 0;
     $sFileOut = $sFile . $_SETT['suffix'];
     $fOut = @fopen($sFileOut, 'w');
     if (!$fOut) {
@@ -59,7 +59,7 @@ foreach ($aFiles as $sFile) {
     $aData = array(); // Will contain transcripts as keys, with an array (position => coverage) as value.
     while ($sLine = fgets($fIn)) {
         $nLine ++;
-        $sBytesRead += strlen($sLine);
+        $nBytesRead += strlen($sLine);
         $sLine = rtrim($sLine);
         list(, $sReference, $nPosition) = explode("\t", $sLine);
         list(, , , $sTranscript,) = explode('|', $sReference);
@@ -76,13 +76,16 @@ foreach ($aFiles as $sFile) {
         }
 
         if (!($nLine % 50000)) {
-            $nPercentageRead = round($sBytesRead/$sFileSize, 2);
+            $nPercentageRead = round($nBytesRead/$nFileSize, 2);
             $nAvailableWidth = $_SETT['terminal_width'] - 8 - strlen($nLine);
             $lDone = round($nPercentageRead*$nAvailableWidth);
             print(str_repeat(chr(8), $_SETT['terminal_width']) .
                 '[' . str_repeat('=', $lDone) . str_repeat(' ', $nAvailableWidth - $lDone) . '] ' . $nLine . ' ' . str_pad(round($nPercentageRead*100), 3, ' ', STR_PAD_LEFT) . '%');
         }
     }
+    $nAvailableWidth = $_SETT['terminal_width'] - 8 - strlen($nLine);
+    print(str_repeat(chr(8), $_SETT['terminal_width']) .
+        '[' . str_repeat('=', $nAvailableWidth) . '] ' . $nLine . ' 100%');
     fclose($fIn);
 
     print("\n" .
