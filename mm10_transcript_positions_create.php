@@ -4,7 +4,7 @@
  *
  * This script generates the mm10_transcript_positions.txt file based on the
  * alignment of the transcriptome FASTA sequences to the GENOME. The results of
- * This alignment is stored in a SAM file, which should be passed to this script
+ * this alignment is stored in a SAM file, which should be passed to this script
  * as the first argument.
  *
  * Created     : 2013-08-22
