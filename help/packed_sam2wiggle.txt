@@ -1,0 +1,60 @@
+While checking the sequences from the original SAM file with the sequences in
+the UCSC genome browser, I noticed that some reads with different sequences were
+mapped to the same transcript/position set.
+To see how often this happens, you can use uniq twice (first with sequences,
+then uniq -c without):
+
+cat merged_A1.fastq.trunc.transcriptome.sam | cut -f 3,4,10 | cut -d "|" -f 4,5 | grep -vE '^(LN|\*)' | sort | uniq | cut -f 1,2| uniq -c | sort -g > merged_A1.fastq.trunc.transcriptome.sam.uniq_reads_counted
+
+Top transcript (Ribosomal RNA) had 1700 different sequences for a certain
+position, and over 1000 for other positions.
+These different sequences all contained the CIGAR string 52M (52 nucleotides
+matched). Later Ele realized, the M can also mean mismatch. Still, supposedly
+the aligner allows only one mismatch, and these sequences were very different.
+
+To see if this also occurs in the genome alignment, we checked those SAM files:
+cat merged_A1.fastq.trunc_unaligned.transcriptome_aligned.genome.sam | cut -f 3,4,10 | cut -d "|" -f 4,5 | grep -vE '^(LN|\*)' | sort | uniq | cut -f 1,2| uniq -c | sort -g > merged_A1.fastq.trunc_unaligned.transcriptome_aligned.genome.sam.uniq_reads_counted
+
+Mismatches were less grave, but at 52M (max read length), there were many
+different sequences aligned to the same position.
+
+To see all CIGAR strings with the sequences:
+grep "chr18" merged_A1.fastq.trunc_unaligned.transcriptome_aligned.genome.sam | grep 54698911| cut -f 6,10 | sort | less
+
+Ele thinks the "1 mismatch" is only valid for the start of the read, since the
+start seemed pretty consistent.
+
+
+
+
+
+To validate the results of the packed_sam2wiggle script, I checked 3 transcripts
+with 3 locations each:
+NM_009716.2     234     1   CACGTGACCACAGTGGGAGGATACGCGG
+NM_009716.2     948     2   ATGTGATCTTTTTGCCCCTCTAGTCCAAGAGACT
+NM_009716.2     1678    3   TCTTGTGTTGCTGTGTTTGCTGTAATAAATT
+NM_022988.2     19      4   CCTGGTTTCCGTATGCTGTCATCGGCACA
+NM_022988.2     814     5   GCAATAATGATAGAGCGAATCAAAACACA
+NM_022988.2     2109    6   AGGAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCCCTTGGCCGAAAAGCAG
+NR_027854.1     106     7   CTTCTCGCCGTCGCCTTGTAAGCTTTGTCT
+NR_027854.1     510     8   GTAAACACAGGAGTCGCCACCACACTTCGCAGCACC
+NR_027854.1     3000    9   ACATGGCCAAACCAAATAACATCTTTCAGT
+
+Resulting Wiggle file:
+track type=wiggle_0 name=merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.subset description=merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.subset visibility=full
+variableStep chrom=chr1
+58412076        9
+58421129        8
+58423983        7
+58447645        4
+58455657        5
+58462273        6
+track type=wiggle_0 name=merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.subset description=merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.subset visibility=full
+variableStep chrom=chr15
+80255417        1
+80256764        2
+80257494        3
+
+Results were manually checked in the UCSC genome browser. Aside from the
+differences in sequence between the FASTA transcriptome reference sequence and
+the genomic reference sequence (in NM_022988), the sequences matched 100%.
