@@ -2,29 +2,34 @@ sudo apt-get install python-pip
 sudo pip install wiggelen
 
 # The below script merges any wiggle files starting with the same part before
-# the first dot (.) in the file name together, and creates a merged wiggle. It
-# does so per strand (F and R), which it fetches from the file name.
-# NOTE that file names must end in ".F.wig5" and ".R.wig5", for both the
-# transcriptome alignments as well as the genomic alignments.
+# the first dot (.) in the file name together, and creates a merged wiggle file.
+# It does so per strand (F and R), and separately for filtered and unfiltered
+# data. This information is taken from the file name.
+# NOTE: File names must end in ".F.wig5" and ".R.wig5", for both the
+# transcriptome alignments as well as the genomic alignments. The filtered files
+# should be named ".F.filtered.wig5" and ".R.filtered.wig5".
+# NOTE: THE GENOMIC WIGGLE FILES MUST CONTAIN "genome" IN THEIR NAMES.
 
 for sample in `ls *.wig5 | cut -d . -f 1 | sort | uniq`;
 do
   for strand in F R;
   do
+    rm -f "${sample}.merged_wiggle.${strand}.wig5";
+    rm -f "${sample}.merged_wiggle.${strand}.filtered.wig5";
     wiggelen merge ${sample}*.${strand}.wig5 | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.wig5";
     echo -n ".";
+    wiggelen merge ${sample}*genome*.${strand}.wig5 ${sample}*.${strand}.filtered.wig5 | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.filtered.wig5";
+    echo -n ".";
   done;
+  # This process leaves .idx files laying around. Remove them by:
+  rm ${sample}*.idx;
   echo -n " ";
 done;
 echo "";
 
 # (on one line)
 
-for sample in `ls *.wig5 | cut -d . -f 1 | sort | uniq`; do for strand in F R; do wiggelen merge ${sample}*.${strand}.wig5  | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.wig5"; echo -n "."; done; echo -n " "; done; echo "";
-
-# This process leaves .idx files laying around. Remove them by:
-
-rm *.idx
+for sample in `ls *.wig5 | cut -d . -f 1 | sort | uniq`; do for strand in F R; do rm -f "${sample}.merged_wiggle.${strand}.wig5"; rm -f "${sample}.merged_wiggle.${strand}.filtered.wig5"; wiggelen merge ${sample}*.${strand}.wig5 | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.wig5"; echo -n "."; wiggelen merge ${sample}*genome*.${strand}.wig5 ${sample}*.${strand}.filtered.wig5 | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.filtered.wig5"; echo -n "."; done; rm ${sample}*.idx; echo -n " "; done; echo "";
 
 # After the merging, I noticed that some positions were in both Wiggle files,
 # which would mean that although some reads could not align to the
