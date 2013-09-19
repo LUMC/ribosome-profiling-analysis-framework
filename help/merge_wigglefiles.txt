@@ -1,0 +1,42 @@
+sudo apt-get install python-pip
+sudo pip install wiggelen
+
+# The below script merges any wiggle files starting with the same part before
+# the first dot (.) in the file name together, and creates a merged wiggle. It
+# does so per strand (F and R), which it fetches from the file name.
+# NOTE that file names must end in ".F.wig5" and ".R.wig5", for both the
+# transcriptome alignments as well as the genomic alignments.
+
+for sample in `ls *.wig5 | cut -d . -f 1 | sort | uniq`;
+do
+  for strand in F R;
+  do
+    wiggelen merge ${sample}*.${strand}.wig5 | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.wig5";
+    echo -n ".";
+  done;
+  echo -n " ";
+done;
+echo "";
+
+# (on one line)
+
+for sample in `ls *.wig5 | cut -d . -f 1 | sort | uniq`; do for strand in F R; do wiggelen merge ${sample}*.${strand}.wig5  | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' > "${sample}.merged_wiggle.${strand}.wig5"; echo -n "."; done; echo -n " "; done; echo "";
+
+# This process leaves .idx files laying around. Remove them by:
+
+rm *.idx
+
+# After the merging, I noticed that some positions were in both Wiggle files,
+# which would mean that although some reads could not align to the
+# transcriptome, they aligned just fine on the genome on the same position.
+# Per chromosome, you can create a list like:
+
+for pos in `diff -U 1 merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.F.wig5_chr1 merged_A1.merged_wiggle.F.wig5_chr1 | grep -E "^\-" | grep -v track | cut -d - -f 2 | cut -f 1`;
+do
+  grep -E "^${pos}\s" merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.F.wig5_chr1 merged_A1.merged_wiggle.F.wig5_chr1;
+  echo "";
+done | cut -d : -f 2 > merged_A1.positions_with_coverage_in_both_wiggles_chr1.txt
+
+# In one line:
+for pos in `diff -U 1 merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.F.wig5_chr1 merged_A1.merged_wiggle.F.wig5_chr1 | grep -E "^\-" | grep -v track | cut -d - -f 2 | cut -f 1`; do grep -E "^${pos}\s" merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam.packed.F.wig5_chr1 merged_A1.merged_wiggle.F.wig5_chr1; echo ""; done | cut -d : -f 2 > merged_A1.positions_with_coverage_in_both_wiggles_chr1.txt
+
