@@ -4,11 +4,13 @@
  *
  * PackedSam2Wiggle converts packed sam files to wiggle files, mapping the reads
  * with transcriptome alignments to the genome using the transcript position
- * file produced by mm10_transcript_positions_create.php.
+ * file produced by mm10_transcript_positions_create.php. This script creates 4
+ * Wiggle files per SAM file; F unfiltered, F filtered (NR and XR removed), R
+ * unfiltered, and R filtered.
  *
  * Created     : 2013-08-21
  * Modified    : 2013-09-19
- * Version     : 0.3
+ * Version     : 0.4
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +19,7 @@
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.4',
         'suffix' => '.wig5',
     );
 
@@ -86,13 +88,25 @@ foreach ($aFiles as $sFile) {
     if (!$fIn) {
         die('Unable to open ' . $sFile . '.' . "\n\n");
     }
-    $aFileNamesOut = array('+' => $sFile . '.F' . $_SETT['suffix'], '-' => $sFile . '.R' . $_SETT['suffix']);
+    $aFileNamesOut =
+        array(
+            '+' => array(
+                $sFile . '.F' . $_SETT['suffix'],
+                $sFile . '.F.filtered' . $_SETT['suffix']),
+            '-' => array(
+                $sFile . '.R' . $_SETT['suffix'],
+                $sFile . '.R.filtered' . $_SETT['suffix']));
     $aFilesOut = array();
-    $aData = array('+' => array(), '-' => array()); // strand => array(chromosome => array(position => coverage))
-    foreach (array('+', '-') as $sStrand) {
-        $aFilesOut[$sStrand] = @fopen($aFileNamesOut[$sStrand], 'w');
-        if (!$aFilesOut[$sStrand]) {
-            die('Unable to open file for writing: ' . $aFileNamesOut[$sStrand] . '.' . "\n\n");
+    // Data, per strand two arrays (non-filtered, filtered).
+    $aData = array('+' => array(), '-' => array()); // strand => array(chromosome => array(position => array(coverage unfiltered, coverage filtered), ...), ...);
+    foreach ($aFileNamesOut as $sStrand => $aStrandFiles) {
+        $aFilesOut[$sStrand] = array();
+        foreach ($aStrandFiles as $sStrandFile) {
+            $f = @fopen($sStrandFile, 'w');
+            if (!$f) {
+                die('Unable to open file for writing: ' . $aFileNamesOut[$sStrand] . '.' . "\n\n");
+            }
+            $aFilesOut[$sStrand][] = $f;
         }
     }
 
@@ -164,9 +178,12 @@ foreach ($aFiles as $sFile) {
                 $aData[$sStrand][$sChr] = array();
             }
             if (!isset($aData[$sStrand][$sChr][$nPosition])) {
-                $aData[$sStrand][$sChr][$nPosition] = 0;
+                $aData[$sStrand][$sChr][$nPosition] = array(0, 0);
             }
-            $aData[$sStrand][$sChr][$nPosition] += $nCoverage;
+            $aData[$sStrand][$sChr][$nPosition][0] += $nCoverage; // Unfiltered, always count.
+            if (preg_match('/^.M_/', $sTranscript)) {
+                $aData[$sStrand][$sChr][$nPosition][1] += $nCoverage; // NM or XM are counted, rest (NR, XR) is not.
+            }
         } else {
             // We chose to ignore the ones that we cannot find mappings of. Just count.
             $nUnmapped ++;
@@ -180,21 +197,31 @@ foreach ($aFiles as $sFile) {
 
     // Write output files.
     $nLines = 0;
-    foreach (array('+', '-') as $sStrand) {
-        // Sorting the results would be nice, but perhaps really unnecessary.
+    foreach ($aFilesOut as $sStrand => $aStrandFiles) {
+        // Sort the results on chromosome.
         ksort($aData[$sStrand]);
-        fputs($aFilesOut[$sStrand], 'track type=wiggle_0 name=' . $sFile . ' description=' . $sFile . ' visibility=full' . "\n");
-        $nLines ++;
+        // Write track headers in both files.
+        fputs($aStrandFiles[0], 'track type=wiggle_0 name=' . $sFile . ' description=' . $sFile . ' visibility=full' . "\n");
+        fputs($aStrandFiles[1], 'track type=wiggle_0 name=' . $sFile . ' description=' . $sFile . ' visibility=full' . "\n");
+        $nLines += 2;
         foreach ($aData[$sStrand] as $sChr => $aPositions) {
-            fputs($aFilesOut[$sStrand], 'variableStep chrom=' . $sChr . "\n");
-            $nLines ++;
-            ksort($aPositions);
-            foreach ($aPositions as $nPosition => $nCoverage) {
-                fputs($aFilesOut[$sStrand], $nPosition . "\t" . $nCoverage . "\n");
+            fputs($aStrandFiles[0], 'variableStep chrom=' . $sChr . "\n");
+            fputs($aStrandFiles[1], 'variableStep chrom=' . $sChr . "\n");
+            $nLines += 2;
+            // Sort positions based on their numbers.
+            ksort($aPositions, SORT_NUMERIC);
+            foreach ($aPositions as $nPosition => $aCoverage) {
+                fputs($aStrandFiles[0], $nPosition . "\t" . $aCoverage[0] . "\n");
                 $nLines ++;
+                // Store in filtered file only if we have coverage...
+                if ($aCoverage[1]) {
+                    fputs($aStrandFiles[1], $nPosition . "\t" . $aCoverage[1] . "\n");
+                    $nLines ++;
+                }
             }
         }
-        fclose($aFilesOut[$sStrand]);
+        fclose($aStrandFiles[0]);
+        fclose($aStrandFiles[1]);
         print(($sStrand == '+'? 'F' : 'R') . $_SETT['suffix'] . ' done... ');
     }
 
