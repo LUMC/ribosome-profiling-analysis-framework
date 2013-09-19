@@ -7,8 +7,8 @@
  * file produced by mm10_transcript_positions_create.php.
  *
  * Created     : 2013-08-21
- * Modified    : 2013-09-18
- * Version     : 0.2
+ * Modified    : 2013-09-19
+ * Version     : 0.3
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'suffix' => '.wig5',
     );
 
@@ -56,13 +56,20 @@ foreach ($aTranscriptPositionsFile as $nLine => $sLine) {
         // Valid transcript position found.
         list(,$sTranscript, $sChr, $sStrand, $sExonPositions) = $aRegs;
         if (!($aExonPositions = json_decode($sExonPositions))) {
-            die('Can\'t parse line ' . $nLine . ' in file ' . $sTranscriptPositionsFile . '.' . "\n\n");
+            die("\n" .
+                'Can\'t parse line ' . $nLine . ' in file ' . $sTranscriptPositionsFile . '.' . "\n\n");
         }
         $aTranscripts[$sTranscript] = array($sChr, $sStrand, $aExonPositions);
         $nTranscripts ++;
     }
 }
 unset($aTranscriptPositionsFile);
+// If the wrong file has been passed, we have no valid transcripts. Then it will
+// make no sense at all to continue.
+if (!count($aTranscripts)) {
+    die("\n" .
+        'Didn\'t find any valid transcript positions. Make sure you passed the correct transcript location file as the first argument.' . "\n\n");
+}
 print('done, loaded ' . $nTranscripts . ' transcript positions in memory.' . "\n");
 
 
@@ -176,9 +183,10 @@ foreach ($aFiles as $sFile) {
     foreach (array('+', '-') as $sStrand) {
         // Sorting the results would be nice, but perhaps really unnecessary.
         ksort($aData[$sStrand]);
+        fputs($aFilesOut[$sStrand], 'track type=wiggle_0 name=' . $sFile . ' description=' . $sFile . ' visibility=full' . "\n");
+        $nLines ++;
         foreach ($aData[$sStrand] as $sChr => $aPositions) {
-            fputs($aFilesOut[$sStrand], 'track type=wiggle_0 name=' . $sFile . ' description=' . $sFile . ' visibility=full' . "\n" .
-                'variableStep chrom=' . $sChr . "\n");
+            fputs($aFilesOut[$sStrand], 'variableStep chrom=' . $sChr . "\n");
             $nLines ++;
             ksort($aPositions);
             foreach ($aPositions as $nPosition => $nCoverage) {
