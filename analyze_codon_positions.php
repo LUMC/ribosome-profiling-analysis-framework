@@ -7,8 +7,8 @@
  * and presents the results.
  *
  * Created     : 2013-04-16
- * Modified    : 2013-08-08
- * Version     : 0.1
+ * Modified    : 2013-09-23
+ * Version     : 0.2
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
@@ -31,6 +31,13 @@ if (count($aFiles) != 4) {
     die('Usage: ' . $sScriptName . ' MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND' . "\n\n");
 }
 $sArgStrand = array_pop($aFiles);
+if ($sArgStrand == 'F') {
+    $sArgStrand = '+';
+} elseif ($sArgStrand == 'R') {
+    $sArgStrand = '-';
+} elseif (!in_array($sArgStrand, array('+','-'))) {
+    die('Strand argument is invalid. Please choose from +, -, F or R.' . "\n\n");
+}
 
 // Check if all files can be read.
 foreach ($aFiles as $sFile) {
@@ -85,6 +92,9 @@ unset($aTranscriptFile[0]); // Header.
 $aTranscripts = array();
 print('Parsing gene file... ');
 foreach ($aTranscriptFile as $sLine) {
+    if (!trim($sLine) || $sLine{0} == '#') {
+        continue;
+    }
     list($sTranscript, $sStrand, $sGene) = explode("\t", $sLine);
     $aTranscripts[$sTranscript] = $sStrand; // We'll ignore the gene name for now.
 }
@@ -111,7 +121,8 @@ foreach ($aMutalyzerResults as $sLine) {
 
     // Get coverage.
     if (!isset($aCoverages[$sVariant])) {
-        die('Cannot find coverage for position ' . $sVariant . ', probably you selected the wrong Wiggle file for this Mutalyzer file?' . "\n");
+        die("\n" .
+            'Cannot find coverage for position ' . $sVariant . ', probably you selected the wrong Wiggle file for this Mutalyzer file?' . "\n");
     }
     $nCoverage = $aCoverages[$sVariant];
     // Filter for low coverage.
@@ -134,7 +145,8 @@ foreach ($aMutalyzerResults as $sLine) {
         $sError = array_shift($aLine);
         if ($sError) {
             // If we have an error, would we ever have an array of at least 4? I think not...
-            die('Position ' . $sVariant . ' somehow generated an error: ' . $sError . "\n");
+            die("\n" .
+                'Position ' . $sVariant . ' somehow generated an error: ' . $sError . "\n");
         }
         array_shift($aLine); // We're ignoring the mapping on the chromosome, which was our input anyways.
         // What is left is an array with at least one mapping to a transcript.
@@ -149,7 +161,8 @@ foreach ($aMutalyzerResults as $sLine) {
                 // Non-coding RNA... ignore it, even though it probably doesn't do much.
                 continue;
             } elseif (!preg_match('/^([NX][RM]_\d+)\.\d+:(.+)/', $sVOT, $aRegs)) {
-                die('Cannot parse variant ' . $sVOT . "\n");
+                die("\n" .
+                    'Cannot parse variant ' . $sVOT . "\n");
             }
 
             $sTranscript = $aRegs[1];
@@ -322,7 +335,8 @@ foreach ($aMutalyzerResults as $sLine) {
             }
         } else {
             // Currently unhandled situation.
-            print('5UTR: ' . (int) $b5UTR . ', Exonic: ' . (int) $bExonic . ', 3UTR: ' . (int) $b3UTR . ', Location: ' . $sVariant . "\n");
+            print('Not implemented:' . "\n" .
+                  '5UTR: ' . (int) $b5UTR . ', Exonic: ' . (int) $bExonic . ', 3UTR: ' . (int) $b3UTR . ', Location: ' . $sVariant . "\n");
         }
 
     } elseif (count($aLine) == 1) {
