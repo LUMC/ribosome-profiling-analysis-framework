@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2013-07-18
- * Version     : 0.1
+ * Modified    : 2013-10-01
+ * Version     : 0.2
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
@@ -42,6 +42,13 @@ if (count($aFiles) != 4) {
     die('Usage: ' . $sScriptName . ' MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND' . "\n\n");
 }
 $sArgStrand = array_pop($aFiles);
+if ($sArgStrand == 'F') {
+    $sArgStrand = '+';
+} elseif ($sArgStrand == 'R') {
+    $sArgStrand = '-';
+} elseif (!in_array($sArgStrand, array('+','-'))) {
+    die('Strand argument is invalid. Please choose from +, -, F or R.' . "\n\n");
+}
 
 // Check if all files can be read.
 foreach ($aFiles as $sFile) {
@@ -96,6 +103,9 @@ unset($aTranscriptFile[0]); // Header.
 $aTranscripts = array();
 print('Parsing gene file... ');
 foreach ($aTranscriptFile as $sLine) {
+    if (!trim($sLine) || $sLine{0} == '#') {
+        continue;
+    }
     list($sTranscript, $sStrand, $sGene) = explode("\t", $sLine);
     $aTranscripts[$sTranscript] = array($sGene, $sStrand);
 }
