@@ -3,7 +3,7 @@ RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY AND ALTERNATIVE ORFs
 
 WORKFLOW
 --------------------------------------------------------------------------------
-If you're doing alignment on the genome only, skip to 6).
+If you're doing alignment on the genome only, skip to 7).
 
 1) If you're doing alignment on the transcriptome, you'll get positions based on
 the start of the transcript, instead of the start of the open reading frame.
@@ -26,7 +26,32 @@ Produces:
 
 
 
-2) After doing the alignment of the ribosome profiling reads on the transcrip-
+2) Also interesting to know is which transcripts might pose problems when
+aligning to the genome. These are the transcripts where close to the translation
+start site an intron is located. This information can not be deduced from the
+transcript-to-genome alignment SAM file from step 1, since that does not
+indicate where the translation start site is located. For this, we download a
+file from the NCBI that has the annotation of exons and the translated region
+for each transcript:
+ftp://ftp.ncbi.nih.gov/genomes/M_musculus/mapview/seq_gene.md.gz
+The find_distance_to_ATG.php script extracts this information and creates two
+files; one with problematic transcripts, sorted on the distance to the closest
+intron, and one file with transcripts where no UTR is annotated so where the
+distance to the 5' intron is unknown.
+A distance of 15 bases to the ATG is currently the default threshold.
+
+Usage: ./find_intron_distance_to_ATG.php path_to_seq_gene.md
+Produces:
+- seq_gene.md.distance_intron_to_ATG.txt
+  Lists all transcripts where the distance of the intron to the ATG is 15 or
+  less (distance is configurable by editing the file).
+- seq_gene.md.distance_intron_to_ATG_errors.txt
+  Lists all transcripts that have no UTR annotated, thus the 5' distance to an
+  intron is unknown. For all these transcripts, the 3' distance is safe (> 15).
+
+
+
+3) After doing the alignment of the ribosome profiling reads on the transcrip-
 tome, you end up with SAM files.
 The SAM files are first packed, reducing them in size and grouping the reads
 together to generate a file that sums the coverage per transcript per position.
@@ -41,7 +66,7 @@ Produces:
 
 
 
-3) The packed SAM files can be used to run some statistics. Currently available
+4) The packed SAM files can be used to run some statistics. Currently available
 is packed_sam2coverage_per_gene.php.
 Usage: ./packed_sam2coverage_per_gene.php path_to_mm10_gene_list.txt \
            PACKED_SAM_FILE1 [ PACKED_SAM_FILE2 [ ... ]]
@@ -59,7 +84,7 @@ many reads are mapped to non-coding reads.
 
 
 
-4) The packed SAM files are used to generate Wiggle files. For this, use the
+5) The packed SAM files are used to generate Wiggle files. For this, use the
 packed_sam2wiggle.php script, which needs the transcript positions file descri-
 bed in 1).
 Usage: ./packed_sam2wiggle.php TRANSCRIPT_POSITIONS_FILE \
@@ -70,14 +95,14 @@ and XR removed), R unfiltered, and R filtered.
 
 
 
-5) Optionally, if genome alignment has been done as well as transcriptome align-
+6) Optionally, if genome alignment has been done as well as transcriptome align-
 ment, the Wiggle files from both alignments can be merged together. This is done
 using the "wiggelen" package written by Martijn Vermaat and Jeroen Laros.
 For detailed information, see the help file help/merge_wigglefiles.txt.
 
 
 
-6) Wiggle files are converted to Mutalyzer position converter batch files using
+7) Wiggle files are converted to Mutalyzer position converter batch files using
 the wig2batchfile.php script.
 Usage: ./wig2batchfile.php WIG_FILE
 It can create one mutalyzer file for multiple Wiggle files, but the analysis
@@ -85,12 +110,12 @@ script does not support that, so then they would need to be split afterwards.
 
 
 
-7) The position converter batch files are manually loaded into Mutalyzer:
+8) The position converter batch files are manually loaded into Mutalyzer:
 https://test.mutalyzer.nl/batchPositionConverter
 
 
 
-8) When done, the results are downloaded from Mutalyzer. If you're not sure
+9) When done, the results are downloaded from Mutalyzer. If you're not sure
 anymore which results file belongs to which batchfile, you can match these files
 by using the match_mutalyzer_output_to_batchfile.sh script.
 Usage:
@@ -103,7 +128,8 @@ Usage:
 
 Example:
 ./analyze_codon_positions.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
-  mm10_gene_list.txt +
+  mm10_gene_list.txt F
+(Valid values for Strand: +, -, F and R)
 
 The script does the following things:
 + Read out the coverage information from the Wiggle file
