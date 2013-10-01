@@ -6,12 +6,12 @@
  * ftp://ftp.ncbi.nih.gov/genomes/M_musculus/mapview/seq_gene.md.gz
  * and generates a list of transcripts that have a very short distance between
  * the ATG and the next intron. All transcripts where the distance is larger
- * than 7 codons (21 bases), are discarded. This value is configurable.
+ * than 5 codons (15 bases), are discarded. This value is configurable.
  * Transcripts that have no UTR annotated, and have a safe distance between the
  * ATG and the first 3' intron, are reported elsewhere in a separate error file.
  *
  * Created     : 2013-08-22
- * Modified    : 2013-09-25
+ * Modified    : 2013-10-01
  * Version     : 0.2
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
@@ -22,7 +22,7 @@
 $_SETT =
     array(
         'version' => '0.2',
-        'maximum_distance' => 21, // In bases, the maximum distance to still be reported.
+        'maximum_distance' => 15, // In bases, the maximum distance to still be reported.
         'output_suffix' => '.distance_intron_to_ATG.txt',
         'output_suffix_error' => '.distance_intron_to_ATG_errors.txt',
         'warnings' => array(
