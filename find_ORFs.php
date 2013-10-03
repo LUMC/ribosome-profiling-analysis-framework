@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2013-10-01
- * Version     : 0.2
+ * Modified    : 2013-10-03
+ * Version     : 0.3
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,11 +17,11 @@
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
-        'min_reads_per_gene' => 3, // A known gene with UORF has only 4 reads above minimum coverage, so we need to keep this low.
+        'min_positions_per_gene' => 3, // A known gene with UORF has only 4 positions above minimum coverage, so we need to keep this low.
         'peak_finding' =>
             array(
                 'neighbour_min_difference' => 10,  // Should be at least # higher than the genomic neighbour.
@@ -95,7 +95,7 @@ foreach ($aWiggleFile as $sLine) {
         $aCoverages[$sChrom . ':g.' . $nPos . 'del'] = $nCoverage; // Faking the variant.
     }
 }
-print('done, loaded ' . $nChroms . ' chromosomes with ' . count($aCoverages) . ' reads in memory.' . "\n");
+print('done, loaded ' . $nChroms . ' chromosomes with ' . count($aCoverages) . ' positions in memory.' . "\n");
 
 // Prepare gene file.
 $aTranscriptFile = file($aFiles[2], FILE_IGNORE_NEW_LINES);
@@ -121,7 +121,7 @@ $nIntronicPositions = 0;
 $nUnmappable = 0;
 $nIntergenic = 0;
 $aPositionsPerGene = array(); // Will contain genes as keys, with an array of transcripts and positions, which is an array of positions and their mappings on the transcripts.
-$aTranscriptsPerRead = array(); // Stores how many positions have how many transcripts, pure statistics.
+$aTranscriptsPerPosition = array(); // Stores how many positions have how many transcripts, pure statistics.
 $aCodonPositions = array();
 $aUnknownTranscripts = array();
 $aMutalyzerResults = file($aFiles[0]);
@@ -134,7 +134,8 @@ foreach ($aMutalyzerResults as $sLine) {
 
     // Get coverage.
     if (!isset($aCoverages[$sVariant])) {
-        die('Cannot find coverage for position ' . $sVariant . ', probably you selected the wrong Wiggle file for this Mutalyzer file?' . "\n");
+        die("\n" .
+            'Cannot find coverage for position ' . $sVariant . ', probably you selected the wrong Wiggle file for this Mutalyzer file?' . "\n");
     }
     $nCoverage = $aCoverages[$sVariant];
     // Filter for low coverage.
@@ -149,15 +150,16 @@ foreach ($aMutalyzerResults as $sLine) {
         $nTranscripts = 0;
     }
     // Prevent notices...
-    if (!isset($aTranscriptsPerRead[$nTranscripts])) {
-        $aTranscriptsPerRead[$nTranscripts] = 0;
+    if (!isset($aTranscriptsPerPosition[$nTranscripts])) {
+        $aTranscriptsPerPosition[$nTranscripts] = 0;
     }
-    $aTranscriptsPerRead[$nTranscripts] ++;
+    $aTranscriptsPerPosition[$nTranscripts] ++;
     if ($nTranscripts >= 1) {
         $sError = array_shift($aLine);
         if ($sError) {
             // If we have an error, would we ever have an array of at least 4? I think not...
-            die('Position ' . $sVariant . ' somehow generated an error: ' . $sError . "\n");
+            die("\n" .
+                'Position ' . $sVariant . ' somehow generated an error: ' . $sError . "\n");
         }
         array_shift($aLine); // We're ignoring the mapping on the chromosome, which was our input anyways.
         // What is left is an array with at least one mapping to a transcript.
@@ -172,7 +174,8 @@ foreach ($aMutalyzerResults as $sLine) {
                 // Non-coding RNA... ignore it, even though it probably doesn't do much.
                 continue;
             } elseif (!preg_match('/^([NX][RM]_\d+)\.\d+:(.+)/', $sVOT, $aRegs)) {
-                die('Cannot parse variant ' . $sVOT . "\n");
+                die("\n" .
+                    'Cannot parse variant ' . $sVOT . "\n");
             }
 
             $sTranscript = $aRegs[1];
@@ -314,39 +317,39 @@ foreach ($aMutalyzerResults as $sLine) {
 }
 $nGenesMapped = count($aPositionsPerGene);
 print('done, ' . $nGenesMapped . ' genes with mappings.' . "\n");
-// Filtering the gene list for low number of reads.
+// Filtering the gene list for low number of positions.
 foreach ($aPositionsPerGene as $sGene => $aGene) {
-    if (count($aGene['positions']) < $_SETT['min_reads_per_gene']) {
+    if (count($aGene['positions']) < $_SETT['min_positions_per_gene']) {
         unset($aPositionsPerGene[$sGene]);
     }
 }
 $nGenesMappedFiltered = count($aPositionsPerGene);
 
 sort($aUnknownTranscripts);
-print('Total reads:' . "\t" . count($aMutalyzerResults) . "\n" .
+print('Total positions:' . "\t" . count($aMutalyzerResults) . "\n" .
       'Filtered for low coverage:' . "\t" . $nFiltered . "\n" .
       'Transcripts not found in gene file:' . "\t" . count($aUnknownTranscripts) . "\t" . implode(';', $aUnknownTranscripts) . "\n" .
-      'Transcripts per read:' . "\n" .
+      'Transcripts per position:' . "\n" .
       'Transcripts' . "\t" . 'Count' . "\n");
-ksort($aTranscriptsPerRead);
-foreach($aTranscriptsPerRead as $nTranscripts => $nReads) {
-    print($nTranscripts . "\t" . $nReads . "\n");
+ksort($aTranscriptsPerPosition);
+foreach($aTranscriptsPerPosition as $nTranscripts => $nPositions) {
+    print($nTranscripts . "\t" . $nPositions . "\n");
 }
 
 print("\n" .
-      'Reads left after filtering:' . "\t" . array_sum($aTranscriptsPerRead) . "\n" .
-      'Reads not mappable:' . "\t" . $nUnmappable . "\t" . 'Possible causes: no mapping by Mutalyzer, transcript is missing, or strand is wrong' . "\n" .
-      'Reads intronic only:' . "\t" . $nIntronicPositions . "\t" . 'Possible causes: transcript is missing, or strand is wrong' . "\n" .
-      'Reads too far from known genes:' . "\t" . $nIntergenic . "\t" . 'Possible causes: transcript is missing, newly discovered transcript, or strand is wrong' . "\n" .
-      'Reads left:' . "\t" . (array_sum($aTranscriptsPerRead) - $nUnmappable - $nIntronicPositions - $nIntergenic) . "\n" .
+      'Positions left after filtering:' . "\t" . array_sum($aTranscriptsPerPosition) . "\n" .
+      'Positions not mappable:' . "\t" . $nUnmappable . "\t" . 'Possible causes: no mapping by Mutalyzer, transcript is missing, or strand is wrong' . "\n" .
+      'Positions intronic only:' . "\t" . $nIntronicPositions . "\t" . 'Possible causes: transcript is missing, or strand is wrong' . "\n" .
+      'Positions too far from known genes:' . "\t" . $nIntergenic . "\t" . 'Possible causes: transcript is missing, newly discovered transcript, or strand is wrong' . "\n" .
+      'Positions left:' . "\t" . (array_sum($aTranscriptsPerPosition) - $nUnmappable - $nIntronicPositions - $nIntergenic) . "\n" .
       'Genes mapped to:' . "\t" . $nGenesMapped . "\n" .
-      'Genes left after filtering:' . "\t" . $nGenesMappedFiltered . "\t" . 'Genes with too little reads (count < ' . $_SETT['min_reads_per_gene'] . ') were ignored' . "\n" .
-      'Reads left:' . "\t");
-$nReads = 0;
+      'Genes left after filtering:' . "\t" . $nGenesMappedFiltered . "\t" . 'Genes with too few positions (count < ' . $_SETT['min_positions_per_gene'] . ') were ignored' . "\n" .
+      'Positions left:' . "\t");
+$nPositions = 0;
 foreach ($aPositionsPerGene as $aGene) {
-    $nReads += count($aGene['positions']);
+    $nPositions += count($aGene['positions']);
 }
-print($nReads . "\n" .
+print($nPositions . "\n" .
       'Now looking for peaks');
 
 
@@ -526,8 +529,8 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
     $nOriCandidates = count($aGene['positions']);
     $nCandidates = count($aGene['candidates']);
     $aTranscripts = array_keys($aGene['transcripts']);
-    print($sGene . "\t" . 'Reads analyzed:' . "\t" . $nOriCandidates . "\t" . 'Candidate peaks:' . "\t" . $nCandidates . "\n");
-    print('G_Position' . "\t" . 'Depth' . "\t" . implode("\t", $aTranscripts) . "\n");
+    print($sGene . "\t" . 'Positions analyzed:' . "\t" . $nOriCandidates . "\t" . 'Candidate peaks:' . "\t" . $nCandidates . "\n");
+    print('G_Position' . "\t" . 'Coverage' . "\t" . implode("\t", $aTranscripts) . "\n");
     foreach ($aGene['candidates'] as $nPosition) {
         $aPosition = $aGene['positions'][$nPosition];
         print('chr' . $aGene['chr'] . ':' . $nPosition . "\t" . $aPosition['coverage']);
