@@ -1,0 +1,23 @@
+How to run the script in a loop over several samples:
+
+for sample in A1 A2 A3 C1 C2 C3;
+do
+  for strand in F R;
+  do
+    ./find_ORFs.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" mm10_gene_list.txt $strand > "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_ORF_analysis.txt";
+    echo -n ".";
+  done;
+done;
+echo "";
+
+On one line:
+for sample in A1 A2 A3 C1 C2 C3; do for strand in F R; do ./find_ORFs.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" mm10_gene_list.txt $strand > "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_ORF_analysis.txt"; echo -n "."; done; done; echo "";
+
+The ORF analysis should only be run on the harringtonin samples, because only
+there the ribosomes are stopped near the ORF start site (OSS). These samples are
+marked with A and C.
+
+A  Myoblasts  Harringtonin
+B  Myoblasts
+C  Myotubes   Harringtonin
+D  Myotubes
