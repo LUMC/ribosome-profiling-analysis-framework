@@ -242,3 +242,29 @@ Possible to do:
 - Since we don't expect coverage in the last exons (except in really large
   genes), we will not estimate the transcript length correctly, and all will be
   filtered out?
+
+
+
+11) Now, the ORF files need to be grouped, per strand (F and R). The
+merge_ORF_files.php script merges the files for you into one summary file, but
+does not take care of the strands, so you need to make sure you don't mix
+forward and reverse files with each other.
+Usage:
+./merge_ORF_files.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
+
+Example:
+./merge_ORF_files.php *.F.*_ORF_analysis.txt
+
+The script analyses the file names to isolate the sample IDs. It assumes that
+the sample IDs are the only differences between the input file names. The sample
+IDs are also used in the headers of the output.
+
+While grouping, it ignores the positions of the peaks on the transcripts. It
+only reports the chromosomal position, per sample the coverage, and then as a
+last column the gene name.
+
+Example output:
+# Chromosome    Position    A1    A2    A3    C1    C2    C3    Gene
+chr1            4857920     32    14    27     0     0    10    Tcea1
+chr1            4857929     24     0    24     0     0     0    Tcea1
+
