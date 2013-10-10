@@ -111,7 +111,11 @@ script does not support that, so then they would need to be split afterwards.
 
 
 8) The position converter batch files are manually loaded into Mutalyzer:
+https://mutalyzer.nl/batchPositionConverter
+or
 https://test.mutalyzer.nl/batchPositionConverter
+(this test installation is slightly faster because it doesn't have much traffic,
+ but it doesn't support emailing you the link to the results)
 
 
 
@@ -145,11 +149,15 @@ The script does the following things:
   * Filter positions too far from transcript start or stop sites
     (> 500bp)
   * The remaining possible mappings are processed.
-    - 5' UTR or 3' UTR mappings, while exonic mappings are also
+    Please note that the "coding region" is defined as the region starting at
+    -15 nucleotides from the ATG to the end of the open reading frame.
+    Please note that this script does not see the difference between the UTR and
+    the intergenic sequence. Both are referred to as "UTR mappings".
+    - 5' UTR or 3' UTR mappings, while mappings to the coding region are also
       available, are discarded.
-    - If there are 5' UTR and 3' UTR mappings, but none in the exon
+    - If there are 5' UTR and 3' UTR mappings, but none in the coding
       region, we assume an intergenic situation and if one of the two
-      positions is clearly closer to the translated region than the
+      positions is clearly closer to the coding region than the
       other (> 100bp), then the closest position is picked.
       If not, the position is reported.
     - After this, all mappings are counted by their coverage and
@@ -189,9 +197,13 @@ The script does the following things:
   * Filter positions with only intronic mapping
   * Filter positions too far from transcript start or stop sites (> 500bp)
   * The remaining possible mappings are processed.
-    - 5' UTR or 3' UTR mappings, while exonic mappings are also available, are
-      discarded.
-    - If there are 5' UTR and 3' UTR mappings, but none in the exon region, we
+    Please note that the "coding region" is defined as the region starting at
+    -15 nucleotides from the ATG to the end of the open reading frame.
+    Please note that this script does not see the difference between the UTR and
+    the intergenic sequence. Both are referred to as "UTR mappings".
+    - 5' UTR or 3' UTR mappings, while mappings to the coding region are also
+      available, are discarded.
+    - If there are 5' UTR and 3' UTR mappings, but none in the coding region, we
       assume an intergenic situation and if one of the two positions is clearly
       closer to the translated region than the other (> 100bp), then the closest
       position is picked. If not, the position is reported.
@@ -207,20 +219,20 @@ The script does the following things:
   * Each position with coverage is compared to the average coverage of the
     surrounding region (currently defined as -5 to +5 nucleotides). If the
     coverage is not at least a factor 10 higher, the position is discarded.
-  * Exonic background is filtered out.
+  * Background in the coding region is filtered out.
     ============================================================================
     NOTE: This is currently done by simply removing all positions that are in
-    the exonic region (>= than 1 and < than *1) as candidates. However, it is
+    the coding region (>= than 1 and < than *1) as candidates. However, it is
     planned to be done as follows:
     ============================================================================
-    This is done by comparing the coverage of each exonic position to the
+    This is done by comparing the coverage of each coding position to the
     average of all positions in this frame. So for position one, the coverage
     should be compared to the average of the coverage for positions (1, 4, 7,
     10, 13, etc). For position 2 we need to compare to 2, 5, 8, 11, 14, etc.
     Problem: Do we need to guess the length of the transcript, or will we take
     the length of where we see coverage to calculate the average? We could do
     so, by looping from the highest position backwards, and store the highest
-    peak position that is exonic (not 3' UTR).
+    peak position that is in the coding region (not 3' UTR).
     If a position's coverage is not at least a factor 2 higher than this
     average, the position is discarded.
 + Genes that have no candidate peaks left, are ignored.
@@ -236,9 +248,10 @@ Possible to do:
 - The region surrounding the position that the position's coverage is compared
   to, is based on genomic coordinates, and not RNA coordinates. This could lead
   to false positives because we might be comparing to intronic sequence.
-- Actually implement the exonic filtering? Is the proposed method OK?
-- Exonic filtering against background measured per frame, so we can find
-  alternative frames?
+- Actually implement the filtering in the coding region? Is the proposed method
+  OK?
+- Filtering in the coding region against background measured per frame, so we
+  can find alternative frames?
 - Since we don't expect coverage in the last exons (except in really large
   genes), we will not estimate the transcript length correctly, and all will be
   filtered out?

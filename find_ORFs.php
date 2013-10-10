@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2013-10-03
- * Version     : 0.3
+ * Modified    : 2013-10-10
+ * Version     : 0.4
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.4',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
@@ -29,8 +29,8 @@ $_SETT =
                 'region_average_upstream' => 5,    // Region starts # bases upstream.
                 'region_average_downstream' => 5,  // Region ends # bases downstream.
                 'region_average_min_factor' => 10, // Should be at least #x higher than the average coverage of the region.
-                'exonic_average_min_factor' => 2,  // Exonic reads should be at least #x higher than the average coverage of the exonic region.
-                'exonic_report_max_peaks' => 2,    // Report the # highest peaks in the exonic region, discard the rest.
+                'coding_average_min_factor' => 2,  // Coding reads should be at least #x higher than the average coverage of the coding region.
+                'coding_report_max_peaks' => 2,    // Report the # highest peaks in the coding region, discard the rest.
             ),
     );
 
@@ -164,7 +164,7 @@ foreach ($aMutalyzerResults as $sLine) {
         array_shift($aLine); // We're ignoring the mapping on the chromosome, which was our input anyways.
         // What is left is an array with at least one mapping to a transcript.
         $b5UTR = false;
-        $bExonic = false;
+        $bCoding = false; // 'Coding region' also applies to -15 to -1.
         $bIntronic = false;
         $b3UTR = false;
         // Store all options first, then decide what to do depending on the resulting options.
@@ -180,7 +180,7 @@ foreach ($aMutalyzerResults as $sLine) {
 
             $sTranscript = $aRegs[1];
             $sPosition = $aRegs[2];
-            // Check strand and then check if position is exonic. If so, store position!
+            // Check strand and then check if position is in coding region. If so, store position!
             if (!isset($aTranscripts[$sTranscript])) {
                 // This happens quite a lot...
                 if (!in_array($sTranscript, $aUnknownTranscripts)) {
@@ -200,7 +200,7 @@ foreach ($aMutalyzerResults as $sLine) {
                     } elseif ($aRegs[2] < -15) {
                         $b5UTR = true; // Other values >= -15 && < 0 are very valuable and not regarded 5'UTR.
                     } else {
-                        $bExonic = true;
+                        $bCoding = true;
                     }
                 } elseif (preg_match('/^[cn]\.(\*)?(\-?\d+)([+-]\d+)del$/', $sPosition)) {
                     // Intronic, we must have got the wrong transcript here!
@@ -252,8 +252,8 @@ foreach ($aMutalyzerResults as $sLine) {
             }
         }
 
-        // If we have 5' and 3'UTR values, but no exonic values, compare the 5' and 3' positions.
-        if ($b5UTR && !$bExonic && $b3UTR) {
+        // If we have 5' and 3'UTR positions, but no positions in the coding region, compare the 5' and 3' positions.
+        if ($b5UTR && !$bCoding && $b3UTR) {
             $nMin = -$_SETT['max_upstream'];
             $nMax = $_SETT['max_downstream'];
             // Determine the 5' and 3' positions closest to the translation start and end sites.
@@ -409,10 +409,10 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
 
 
 
-    // Step 4: Filter out exonic background.
-    // From all in-frame, exonic positions (1, 4, 7, 10, 13, etc) we calculate the average. All peaks from this region are then compared with this average.
+    // Step 4: Filter out background in coding region.
+    // From all in-frame positions in the coding region (1, 4, 7, 10, 13, etc) we calculate the average. All peaks from this region are then compared with this average.
     // If the factor is not high enough, the peak is discarded.
-    // First, we need to guess the length of the transcript. We do so, by looping from the highest position backwards, and store the peak position with the highest exonic position.
+    // First, we need to guess the length of the transcript. We do so, by looping from the highest position backwards, and store the peak position with the highest position in the coding region.
     $aPositions = array_keys($aGene['positions']);
     if ($aGene['strand'] == '+') {
         // Gene on + strand. Start at highest genomic position.
@@ -434,7 +434,7 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
                 // We're upstream now. Went too far, break.
                 break;
             } else {
-                // Exonic region. Store length of we don't already have it, and take coverage if we're inframe.
+                // Coding region. Store length of we don't already have it, and take coverage if we're in frame.
                 if (!$nLength) {
                     $nLength = $sPosition;
                 }
@@ -460,22 +460,22 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
     foreach ($aCandidates as $nKey => $nPosition) {
         /*
         // FIXME: filter now on these values.
-                'exonic_average_min_factor' => 2,  // Exonic reads should be at least #x higher than the average coverage of the exonic region.
-                'exonic_report_max_peaks' => 2,    // Report the # highest peaks in the exonic region, discard the rest.
+                'coding_average_min_factor' => 2,  // Coding reads should be at least #x higher than the average coverage of the coding region.
+                'coding_report_max_peaks' => 2,    // Report the # highest peaks in the coding region, discard the rest.
         */
 
 
         // TEMPORARY!!! FILTER OUT EVERYTHING THAT IS WITHIN THE ORF ONLY.
         $aPosition = $aGene['positions'][$nPosition];
-        $bExonic = true;
+        $bCoding = true;
         foreach ($aPosition['mappings'] as $sPosition) {
             if (substr($sPosition, 0, 1) == '-') {
                 // Don't delete it.
-                $bExonic = false;
+                $bCoding = false;
                 break;
             }
         }
-        if ($bExonic) {
+        if ($bCoding) {
             // Only mapped to 1 >= pos <= *.
             // Not a candidate anymore.
             unset($aCandidates[$nKey]);
@@ -486,8 +486,8 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
 
 
     // FIXME: My theory is that long transcripts didn't have time to finish translation. When the ribosome is stopped at the ATG site, the others more downstream continue to translate the RNA.
-    //   However, after 10 minutes the RNA isolation protocol is initiated. With long transcripts (e.g. Col3a1) we see that the background noise in the exonic region is increased greatly at the end of the transcript.
-    //   We could perhaps estimate the size of the transcript by noting the peak furthest in the transcript, and then calculate the average coverage per base (exonic positions), taking the number of transcripts
+    //   However, after 10 minutes the RNA isolation protocol is initiated. With long transcripts (e.g. Col3a1) we see that the background noise in the coding region is increased greatly at the end of the transcript.
+    //   We could perhaps estimate the size of the transcript by noting the peak furthest in the transcript, and then calculate the average coverage per base (coding positions), taking the number of transcripts
     //   of this length into account, not blindly dividing by the total number of transcripts. This figure will probably show an image similar to Col3a1, and this can be used for adding an additional filtering
     //   step, where the background noise at the far downstream end of the transcript is compared to the average coverage in this region of the transcript.
 

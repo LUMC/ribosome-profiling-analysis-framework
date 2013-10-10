@@ -7,8 +7,8 @@
  * and presents the results.
  *
  * Created     : 2013-04-16
- * Modified    : 2013-09-23
- * Version     : 0.2
+ * Modified    : 2013-10-10
+ * Version     : 0.3
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
@@ -151,7 +151,7 @@ foreach ($aMutalyzerResults as $sLine) {
         array_shift($aLine); // We're ignoring the mapping on the chromosome, which was our input anyways.
         // What is left is an array with at least one mapping to a transcript.
         $b5UTR = false;
-        $bExonic = false;
+        $bCoding = false; // 'Coding region' also applies to -15 to -1.
         $bIntronic = false;
         $b3UTR = false;
         // Store all options first, then decide what to do depending on the resulting options.
@@ -167,7 +167,7 @@ foreach ($aMutalyzerResults as $sLine) {
 
             $sTranscript = $aRegs[1];
             $sPosition = $aRegs[2];
-            // Check strand and then check if position is exonic. If so, store position!
+            // Check strand and then check if position is in coding region. If so, store position!
             if (!isset($aTranscripts[$sTranscript])) {
                 // This happens quite a lot...
                 if (!in_array($sTranscript, $aUnknownTranscripts)) {
@@ -187,7 +187,7 @@ foreach ($aMutalyzerResults as $sLine) {
                     } elseif ($aRegs[2] < -15) {
                         $b5UTR = true; // Other values >= -15 && < 0 are very valuable and not regarded 5'UTR.
                     } else {
-                        $bExonic = true;
+                        $bCoding = true;
                     }
                 } elseif (preg_match('/^[cn]\.(\*)?(\-?\d+)([+-]\d+)del$/', $sPosition)) {
                     // Intronic, we must have got the wrong transcript here!
@@ -239,8 +239,8 @@ foreach ($aMutalyzerResults as $sLine) {
             }
         }
 
-        // If we have 5'UTR values, but also exonic values, the 5'UTR is taken out.
-        if ($b5UTR && $bExonic) {
+        // If we have 5'UTR positions, but also positions in the coding region, the 5'UTR is taken out.
+        if ($b5UTR && $bCoding) {
             foreach ($aCodonOptions as $nKey => $sPosition) {
                 if ($sPosition{0} == '-' && $sPosition < -15) {
                     unset($aCodonOptions[$nKey]);
@@ -249,8 +249,8 @@ foreach ($aMutalyzerResults as $sLine) {
             $b5UTR = false;
         }
 
-        // If we have 3'UTR values, but also exonic values, the 3'UTR is taken out.
-        if ($bExonic && $b3UTR) {
+        // If we have 3'UTR positions, but also positions in the coding region, the 3'UTR is taken out.
+        if ($bCoding && $b3UTR) {
             foreach ($aCodonOptions as $nKey => $sPosition) {
                 if ($sPosition{0} == '*') {
                     unset($aCodonOptions[$nKey]);
@@ -259,8 +259,8 @@ foreach ($aMutalyzerResults as $sLine) {
             $b3UTR = false;
         }
 
-        // If we have 5' and 3'UTR values, but no exonic values, compare the 5' and 3' positions.
-        if ($b5UTR && !$bExonic && $b3UTR) {
+        // If we have 5' and 3'UTR positions, but no positions in the coding region, compare the 5' and 3' positions.
+        if ($b5UTR && !$bCoding && $b3UTR) {
             $nMin = -$_SETT['max_upstream'];
             $nMax = $_SETT['max_downstream'];
             // Determine the 5' and 3' positions closest to the translation start and end sites.
@@ -296,19 +296,19 @@ foreach ($aMutalyzerResults as $sLine) {
 
 
         // If everything is normal, report it.
-        if ((!$b5UTR && $bExonic && !$b3UTR) || ($b5UTR && !$bExonic && !$b3UTR) || (!$b5UTR && !$bExonic && $b3UTR)) {
+        if ((!$b5UTR && $bCoding && !$b3UTR) || ($b5UTR && !$bCoding && !$b3UTR) || (!$b5UTR && !$bCoding && $b3UTR)) {
             foreach ($aCodonOptions as $sPosition) {
                 if ($sPosition{0} != '*' && $sPosition >= -15) {
                     // Group reads together, store position in codon.
                     if ($sPosition < 0) {
-                        // 'Exonic', but -15 to -1.
+                        // 'Coding region', but -15 to -1.
                         $nCodonPosition = ($sPosition%3)+4; // -6->4, -5->2, -4->3.
                         if ($nCodonPosition == 4) {
                             // Second position.
                             $nCodonPosition = 1;
                         }
                     } else {
-                        // Real exonic positions.
+                        // Real coding positions.
                         $nCodonPosition = $sPosition % 3; // 4->1, 5->2, 6->0.
                         if (!$nCodonPosition) {
                             // Third position.
@@ -336,7 +336,7 @@ foreach ($aMutalyzerResults as $sLine) {
         } else {
             // Currently unhandled situation.
             print('Not implemented:' . "\n" .
-                  '5UTR: ' . (int) $b5UTR . ', Exonic: ' . (int) $bExonic . ', 3UTR: ' . (int) $b3UTR . ', Location: ' . $sVariant . "\n");
+                  '5UTR: ' . (int) $b5UTR . ', Coding: ' . (int) $bCoding . ', 3UTR: ' . (int) $b3UTR . ', Location: ' . $sVariant . "\n");
         }
 
     } elseif (count($aLine) == 1) {
