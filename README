@@ -201,60 +201,72 @@ The script does the following things:
     -15 nucleotides from the ATG to the end of the open reading frame.
     Please note that this script does not see the difference between the UTR and
     the intergenic sequence. Both are referred to as "UTR mappings".
-    - 5' UTR or 3' UTR mappings, while mappings to the coding region are also
-      available, are discarded.
-    - If there are 5' UTR and 3' UTR mappings, but none in the coding region, we
-      assume an intergenic situation and if one of the two positions is clearly
-      closer to the translated region than the other (> 100bp), then the closest
-      position is picked. If not, the position is reported.
+    - 3' UTR mappings, while mappings to the coding region or in the 5' UTR are
+      also available, are discarded.
     - After this, all positions are stored, per gene, for the next step.
-+ Genes with less than 3 reads aligned to it, are ignored.
-+ Peaks are searched for by comparing them to the surrounding area.
-  * Known peaks (-15, -12, -9, -6 and -3) are never discarded, because we want
-    to show them always.
-  * Each position with coverage is compared to its direct neighbouring
-    nucleotides (-1, +1). If the coverage is not at least 10 reads higher, or
-    when the coverage is not at least a factor 2 higher, the position is
-    discarded.
-  * Each position with coverage is compared to the average coverage of the
-    surrounding region (currently defined as -5 to +5 nucleotides). If the
-    coverage is not at least a factor 10 higher, the position is discarded.
-  * Background in the coding region is filtered out.
-    ============================================================================
-    NOTE: This is currently done by simply removing all positions that are in
-    the coding region (>= than 1 and < than *1) as candidates. However, it is
-    planned to be done as follows:
-    ============================================================================
-    This is done by comparing the coverage of each coding position to the
-    average of all positions in this frame. So for position one, the coverage
-    should be compared to the average of the coverage for positions (1, 4, 7,
-    10, 13, etc). For position 2 we need to compare to 2, 5, 8, 11, 14, etc.
-    Problem: Do we need to guess the length of the transcript, or will we take
-    the length of where we see coverage to calculate the average? We could do
-    so, by looping from the highest position backwards, and store the highest
-    peak position that is in the coding region (not 3' UTR).
-    If a position's coverage is not at least a factor 2 higher than this
-    average, the position is discarded.
++ Peaks are searched for by walking through the positions, starting upstream.
+  Each position, with at least a coverage of 10, is analyzed.
+  * Its coverage should be higher than that of the positions located 3, 6, 9, 12
+    and 15 nucleotides upstream of it.
+  * It should show a triplet periodicity and a clear "harringtonine pattern":
+    - The two other nucleotides in the possible codon, so the two nucleotides
+      downstream of the position we're analyzing, should not have an average
+      coverage higher than 20% of the position's coverage.
+    - The following 5 codons should also not have a higher maximum coverage than
+      this position's coverage.
+    - If any of the following 5 codons have a maximum coverage higher than 10%
+      of the coverage of the position we're analyzing, that codon must not show
+      a conflicting triplet periodicity pattern (see first point above).
+  * If all these rules apply, the position is stored as a possible ORF start,
+    and the analysis is continued 5 codons downstream, but again per nucleotide
+    and thus allowing ORF start sites in any frame.
+  * We currently assume that this will automatically filter out the background
+    found at the end of some transcripts. This background is possible on
+    transcripts with a length of 5K or higher, since harringtonine was applied
+    for 5 minutes and translation speed is about 5.6 codons per second according
+    to the literature (5.6 * 3 * 5 * 60 = 5040 nucleotides).
++ Per gene, from all its found possible ORF starts, we will take the one with
+  the highest coverage as a reference, and discard any other candidate ORF
+  starting points that do not have at least a coverage (on that position) of 10%
+  of the reference (highest candidate).
++ All remaining candidate ORF starting points will be reported.
++ Problem: If two ORF starts are apart by less than 5 codons, this procedure
+  will either not detect one of the two, or reject both because of each other's
+  presence (most likely in the case of two ORFs in a different frame). We can
+  decrease the required distance of 5 codons, if we believe that ORFs are not
+  detected because of this.
++ Problem: Because of the background found in some longer transcripts, we will
+  probably not pick up any ORF start sites within the affected region that use a
+  different frame than the background, because the conflicting triplet
+  periodicity pattern makes the algorithm reject the candidate. Analyzing the
+  pattern in the background separately may in fact detect these ORF start sites.
+  Please note that ORF start sites in any frame within 5KB of the primary ORF
+  can still be detected, because they are not affected by the background noise.
++ Problem: Mutalyzer describes positions after the stop codon with an asterisk
+  followed by the distance to the stop codon, e.g. *3. Since this script does
+  not know the transcript lengths at the moment, it is unaware of the distance
+  between a position in the coding region (e.g. 4623) and a position after the
+  stop codon. Therefore, the checks of the coverage of the surrounding positions
+  of a candidate translation start site will be incorrect or not be possible
+  when this site is located around the annotated stop codon.
+  This may cause false positives around the translation stop site, but not false
+  negatives.
 + Genes that have no candidate peaks left, are ignored.
-+ For all genes remaining, the positions are reported relative to all known
-  transcripts of the gene in question. The original number of positions is
-  mentioned along with the number of remaining candidate peaks.
-  Results are displayed as: position, coverage, position on transcript.
++ For all genes remaining, the positions of the candidate ORF start sites are
+  reported relative to all known transcripts of the gene in question. The
+  original number of positions with high coverage (>10) is mentioned along with
+  the number of remaining candidate ORF start sites.
+  Results are displayed as: genomic position, coverage, position on transcript.
   The last column may be repeated, depending on the number of known transcripts.
++ Additionally, a separate file reports all candidate peaks found at a position
+  higher than 5Kb from a known ORF start site, so they can easily be checked
+  more thoroughly if they are false positives.
 
 Possible to do:
-- When the possible peak is compared to the surrounding positions, the strand is
-  currently ignored, we can improve that.
-- The region surrounding the position that the position's coverage is compared
-  to, is based on genomic coordinates, and not RNA coordinates. This could lead
-  to false positives because we might be comparing to intronic sequence.
 - Actually implement the filtering in the coding region? Is the proposed method
   OK?
 - Filtering in the coding region against background measured per frame, so we
   can find alternative frames?
-- Since we don't expect coverage in the last exons (except in really large
-  genes), we will not estimate the transcript length correctly, and all will be
-  filtered out?
 
 
 
@@ -266,15 +278,19 @@ Usage:
 ./merge_ORF_files.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
 
 Example:
-./merge_ORF_files.php *.F.*_ORF_analysis.txt
+./merge_ORF_files.php *.F.*_ORF_analysis_results.txt
 
-The script analyses the file names to isolate the sample IDs. It assumes that
+The script analyzes the file names to isolate the sample IDs. It assumes that
 the sample IDs are the only differences between the input file names. The sample
 IDs are also used in the headers of the output.
 
 While grouping, it ignores the positions of the peaks on the transcripts. It
 only reports the chromosomal position, per sample the coverage, and then as a
 last column the gene name.
+
+NOTE: When this script reports a coverage of 0, it simply means the position was
+not recognized as a translation start site in that sample. The actual measured
+coverage in that sample may not at all be 0.
 
 Example output:
 # Chromosome    Position    A1    A2    A3    C1    C2    C3    Gene

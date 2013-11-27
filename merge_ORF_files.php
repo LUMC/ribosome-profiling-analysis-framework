@@ -7,8 +7,8 @@
  * and the coverage per sample is shown.
  *
  * Created     : 2013-10-08
- * Modified    : 2013-10-08
- * Version     : 0.1
+ * Modified    : 2013-11-22
+ * Version     : 0.2
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'output_suffix' => '.merged_ORF_analyses.txt',
     );
 
@@ -93,38 +93,28 @@ foreach ($aFiles as $sFile) {
     $aSamples[] = $sSampleID;
     $aORFFile = file($sFile, FILE_IGNORE_NEW_LINES);
     print('Parsing ' . $sFile . '... ');
-    $bPeakLineFound = false;
     $sGene = '';
     $nPositions = 0;
     foreach ($aORFFile as $sLine) {
         if (!trim($sLine)) {
             continue;
         }
-        if (!$bPeakLineFound) {
-            // Haven't seen the "Now looking for peaks" line yet.
-            if (!preg_match('/^Now looking for peaks\.+ done\.$/', $sLine)) {
-                continue;
-            } else {
-                $bPeakLineFound = true;
+        // We're looking at the data, or just before.
+        // If we don't have a gene yet, look for it.
+        if (preg_match('/^(.+)\tPositions found:\t\d+\tPositions analyzed:\t\d+\tTSS found:\t\d+$/', $sLine, $aRegs)) {
+            $sGene = $aRegs[1];
+        }
+        if ($sGene && preg_match('/^(chr(\d+|[XYM])):(\d+)\t(\d+)(\t[0-9*-]+)+$/', $sLine, $aRegs)) {
+            // We have a gene, and we matched a data line.
+            $nPositions ++;
+            list(,$sChr, , $nPosition, $nCoverage) = $aRegs;
+            if (!isset($aData[$sChr])) {
+                $aData[$sChr] = array();
             }
-        } else {
-            // We're looking at the data, or just before.
-            // If we don't have a gene yet, look for it.
-            if (preg_match('/^(.+)\tPositions analyzed:\t\d+\tCandidate peaks:\t\d+$/', $sLine, $aRegs)) {
-                $sGene = $aRegs[1];
+            if (!isset($aData[$sChr][$nPosition])) {
+                $aData[$sChr][$nPosition] = array($sGene);
             }
-            if ($sGene && preg_match('/^(chr(\d+|[XYM])):(\d+)\t(\d+)(\t[0-9*-]+)+$/', $sLine, $aRegs)) {
-                // We have a gene, and we matched a data line.
-                $nPositions ++;
-                list(,$sChr, , $nPosition, $nCoverage) = $aRegs;
-                if (!isset($aData[$sChr])) {
-                    $aData[$sChr] = array();
-                }
-                if (!isset($aData[$sChr][$nPosition])) {
-                    $aData[$sChr][$nPosition] = array($sGene);
-                }
-                $aData[$sChr][$nPosition][$sSampleID] = $nCoverage;
-            }
+            $aData[$sChr][$nPosition][$sSampleID] = $nCoverage;
         }
     }
     print('done, loaded ' . $nPositions . ' positions.' . "\n");
@@ -141,6 +131,9 @@ if (!$fOut) {
 // Let user know we're working here...
 print('Writing output to ' . $sFileOut . '... ');
 fputs($fOut, '# ' . $sScriptName . ' v.' . $_SETT['version'] . "\n" .
+    '# NOTE: When this script reports a coverage of 0, it simply means the position' . "\n" .
+    '#   was not recognized as a translation start site in that sample.' . "\n" .
+    '#   The actual measured coverage in that sample may not at all be 0.' . "\n" .
     '# Chromosome' . "\t" . 'Position');
 foreach ($aSamples as $sSampleID) {
     fputs($fOut, "\t" . $sSampleID);
