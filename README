@@ -27,11 +27,11 @@ Produces:
 
 
 2) Also interesting to know is which transcripts might pose problems when
-aligning to the genome. These are the transcripts where close to the translation
-start site an intron is located. This information can not be deduced from the
-transcript-to-genome alignment SAM file from step 1, since that does not
-indicate where the translation start site is located. For this, we download a
-file from the NCBI that has the annotation of exons and the translated region
+aligning reads to the genome. These are the transcripts where close to the
+translation start site an intron is located. This information can not be deduced
+from the transcript-to-genome alignment SAM file from step 1, since that does
+not indicate where the translation start site is located. For this, we download
+a file from the NCBI that has the annotation of exons and the translated region
 for each transcript:
 ftp://ftp.ncbi.nih.gov/genomes/M_musculus/mapview/seq_gene.md.gz
 The find_distance_to_ATG.php script extracts this information and creates two
@@ -52,7 +52,7 @@ Produces:
 
 
 3) After doing the alignment of the ribosome profiling reads on the transcrip-
-tome, you end up with SAM files.
+tome, unsupported transcripts removed, you end up with SAM files.
 The SAM files are first packed, reducing them in size and grouping the reads
 together to generate a file that sums the coverage per transcript per position.
 For this, use the pack_sam_files.php file.
@@ -297,3 +297,36 @@ Example output:
 chr1            4857920     32    14    27     0     0    10    Tcea1
 chr1            4857929     24     0    24     0     0     0    Tcea1
 
+
+
+12) To see if we can lose background signal, we're repeating step 10, but with
+the A and C samples merged. To do this, we are running the find_ORFs.php on the
+merged Wiggle files and the Mutalyzer files, using a lower threshold (20 over 3
+samples instead of 10 on 1 sample).
+We merge the files like so:
+
+Merging the Wiggle files:
+wiggelen merge merged_A?.merged_wiggle.F.filtered.wig5 | \
+  sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' \
+  > merged_A.merged_wiggle.F.filtered.wig5
+
+Merging the Mutalyzer files:
+head -n 1 \
+  merged_A1.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt \
+  > merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt
+grep -h "^chr" \
+  merged_A?.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt | \
+  sort -g | uniq \
+  >> merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt
+
+Please note that the order of the variants in the Mutalyzer results file is
+not sorted properly, but the find_ORFs script fixes that.
+
+Then the results are merged:
+./merge_ORF_files.php merged_?.merged_wiggle.F.filtered.wig5.ORF_analysis_results.txt
+./merge_ORF_files.php merged_?.merged_wiggle.R.filtered.wig5.ORF_analysis_results.txt
+
+The merge_ORF_files.php script has been modified to detect it's running on the
+results of merged samples, and it will attempt to find the original Wiggle files
+to be able to show the original coverages of the individual samples, on each of
+the found positions.

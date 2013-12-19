@@ -7,8 +7,8 @@
  * and the coverage per sample is shown.
  *
  * Created     : 2013-10-08
- * Modified    : 2013-11-22
- * Version     : 0.2
+ * Modified    : 2013-12-12
+ * Version     : 0.3
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'output_suffix' => '.merged_ORF_analyses.txt',
     );
 
@@ -42,25 +42,25 @@ if ($nSamples == 1) {
     $sFileOut = $aFiles[0] . $_SETT['output_suffix'];
 } else {
     // Find prefix and suffix for file(s), to have an output file that matches the name.
-    $nPrefixLength = $nSuffixLength = min(array_map('strlen', $aFiles)); // Length of the shortest file name in argument list.
-    $sPrefix = substr($aFiles[0], 0, $nPrefixLength); // Limit prefix already to length of shortest file name.
-    $sSuffix = substr($aFiles[0], -$nSuffixLength); // Limit suffix already to length of shortest file name.
+    $lPrefix = $lSuffix = min(array_map('strlen', $aFiles)); // Length of the shortest file name in argument list.
+    $sPrefix = substr($aFiles[0], 0, $lPrefix); // Limit prefix already to length of shortest file name.
+    $sSuffix = substr($aFiles[0], -$lSuffix); // Limit suffix already to length of shortest file name.
     foreach ($aFiles as $sFile) {
-        for ($i = 0; $i < $nPrefixLength; $i++) {
+        for ($i = 0; $i < $lPrefix; $i++) {
             if ($sPrefix{$i} != $sFile{$i}) {
                 // No match!
                 $sPrefix = substr($sPrefix, 0, $i);
-                $nPrefixLength = strlen($sPrefix);
+                $lPrefix = strlen($sPrefix);
                 break; // Go to next file.
             }
         }
     }
     foreach ($aFiles as $sFile) {
-        for ($i = 1; $i < $nSuffixLength; $i++) {
+        for ($i = 1; $i < $lSuffix; $i++) {
             if (substr($sSuffix, -$i, 1) != substr($sFile, -$i, 1)) {
                 // No match!
                 $sSuffix = substr($sSuffix, -($i-1));
-                $nSuffixLength = strlen($sSuffix);
+                $lSuffix = strlen($sSuffix);
                 break; // Go to next file.
             }
         }
@@ -89,7 +89,7 @@ if (file_exists($sFileOut)) {
 $aData = array(); // chr => array(position => array(gene, sample1 => coverage, sample2 => coverage));
 $aSamples = array();
 foreach ($aFiles as $sFile) {
-    $sSampleID = substr($sFile, $nPrefixLength, -$nSuffixLength);
+    $sSampleID = substr($sFile, $lPrefix, -$lSuffix);
     $aSamples[] = $sSampleID;
     $aORFFile = file($sFile, FILE_IGNORE_NEW_LINES);
     print('Parsing ' . $sFile . '... ');
@@ -130,11 +130,80 @@ if (!$fOut) {
 }
 // Let user know we're working here...
 print('Writing output to ' . $sFileOut . '... ');
-fputs($fOut, '# ' . $sScriptName . ' v.' . $_SETT['version'] . "\n" .
-    '# NOTE: When this script reports a coverage of 0, it simply means the position' . "\n" .
-    '#   was not recognized as a translation start site in that sample.' . "\n" .
-    '#   The actual measured coverage in that sample may not at all be 0.' . "\n" .
-    '# Chromosome' . "\t" . 'Position');
+
+// There are two modes in which we can merge the files. In case the actual replicates are given, we join normally.
+// But in case the replicates were merged before, we need to use the peaks given by the input files, but read the
+// individual Wiggle files of the replicates and show all sample's coverage's. The note about the peak calling
+// (that 0 does not necessarily mean no coverage) is then no longer correct, and is hidden.
+// We "detect" that the replicates have been merged, by looking at the length of the sample IDs. If those are 1,
+// like "A" or "C", then we assume they are merged. Otherwise, with longer sample IDs (like A1, A2, C1, C2, etc),
+// We assume they are not merged. We could also use a regular expression pattern, if we would be more flexible.
+$bMergedReplicates = (strlen($aSamples[0]) == 1); // Sample IDs should be of the same length.
+
+// If we've been merging, try and find the original Wiggle files.
+if ($bMergedReplicates) {
+    $aReplicates = array();
+    foreach ($aFiles as $key => $sFile) {
+        // Try and find the replicates.
+        for ($i = 1; $i < 10; $i ++) {
+            $sReplicateID = $aSamples[$key] . $i;
+            $sReplicateFile = substr($sFile, 0, $lPrefix) . $sReplicateID . substr($sFile, -$lSuffix);
+            // Remove .ORF_analysis_results.txt suffix.
+            $sReplicateFile = preg_replace('/\.ORF_analysis_results(_after_cutoff)?\.txt$/', '', $sReplicateFile);
+            if (preg_match('/wig5?$/', $sReplicateFile) && is_readable($sReplicateFile)) {
+                $aReplicates[$sReplicateID] = $sReplicateFile;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Check if we found replicate Wiggle files, parse these, fill in coverages in $aData.
+    if ($aReplicates) {
+        foreach ($aReplicates as $sReplicateID => $sReplicateFile) {
+            $aWiggleFile = file($sReplicateFile, FILE_IGNORE_NEW_LINES);
+            $sChrom = '';
+            foreach ($aWiggleFile as $sLine) {
+                if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
+                    // Chromosome found.
+                    if (!preg_match('/^chr([0-9]+|[XYM])$/', $aRegs[1])) {
+                        $sChrom = '';
+                    } else {
+                        $sChrom = $aRegs[1];
+                    }
+                    continue;
+                }
+                if ($sChrom) {
+                    // Check if this position is considered a peak.
+                    list($nPos, $nCoverage) = explode("\t", $sLine);
+                    $nPos = (int)$nPos;
+                    if (isset($aData[$sChrom][$nPos])) {
+                        $aData[$sChrom][$nPos][$sReplicateID] = $nCoverage;
+                    }
+                }
+            }
+        }
+
+        // Overwrite $aSamples.
+        $aSamples = array_keys($aReplicates);
+
+    } else {
+        // No replicates found, we just act as if we are not looking at merged files.
+        $bMergedReplicates = false;
+    }
+}
+fputs($fOut, '# ' . $sScriptName . ' v.' . $_SETT['version'] . "\n");
+
+if ($bMergedReplicates) {
+    fputs($fOut, '# Found and parsed Wiggle file: ' . implode("\n" . '# Found and parsed Wiggle file: ', $aReplicates) . "\n");
+} else {
+    fputs($fOut,
+        '# NOTE: When this script reports a coverage of 0, it simply means the position' . "\n" .
+        '#   was not recognized as a translation start site in that sample.' . "\n" .
+        '#   The actual measured coverage in that sample may not at all be 0.' . "\n");
+}
+
+fputs($fOut, '# Chromosome' . "\t" . 'Position');
 foreach ($aSamples as $sSampleID) {
     fputs($fOut, "\t" . $sSampleID);
 }
