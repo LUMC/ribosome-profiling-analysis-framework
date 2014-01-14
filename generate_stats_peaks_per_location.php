@@ -3,8 +3,9 @@
 /*******************************************************************************
  *
  * Generates statistics; the number of peaks per location in a gene (5' UTR,
- * AUG, Downstream coding, 3' UTR, Multiple. It takes all analysis results files
- * from the find_ORFs.php script, and generates one result file per sample.
+ * Annotated TIS, Downstream coding, 3' UTR, Multiple. It takes all analysis
+ * results files from the find_ORFs.php script, and generates one result file
+ * per sample.
  *
  * Created     : 2014-01-08
  * Modified    : 2014-01-08
@@ -22,7 +23,7 @@ $_SETT =
         'categories' =>
         array(
             '5UTR',
-            'AUG',
+            'annotated_TIS',
             'coding',
             '3UTR',
             'multiple',
@@ -71,8 +72,8 @@ if ($nSamples == 1) {
                     'F' => array(), // We'll end up with two keys here hopefully: false = file with peaks before cutoff, true = file with peaks after cutoff.
                     'R' => array(),
                     'data' => array(
-                        false => array_combine($_SETT['categories'], array_fill(0, count($_SETT['categories']), 0)),
-                        true => array_combine($_SETT['categories'], array_fill(0, count($_SETT['categories']), 0)),
+                        false => array_combine($_SETT['categories'], array_fill(0, count($_SETT['categories']), array(0, 0))), // Number of peaks, Total coverage.
+                        true => array_combine($_SETT['categories'], array_fill(0, count($_SETT['categories']), array(0, 0))),
                     ),
                 );
         }
@@ -134,7 +135,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
                             if ($sPositionInGene < -12) {
                                 $sCategory = '5UTR';
                             } elseif ($sPositionInGene >= -12 && $sPositionInGene <= -10) {
-                                $sCategory = 'AUG';
+                                $sCategory = 'annotated_TIS';
                             } else {
                                 $sCategory = 'coding';
                             }
@@ -151,10 +152,10 @@ foreach ($aSamples as $sSampleID => $aSample) {
                         // One transcript, or multiple but at least in the same category of position.
                         $sCategory = $aPositions[0];
                     } else {
-                        // Multiple different positions. If one of them is AUG, we will assume AUG.
+                        // Multiple different positions. If one of them is annotated_TIS, we will assume annotated_TIS.
                         // Otherwise, we don't know what to do, and we call this 'multiple';
-                        if (in_array('AUG', $aPositions)) {
-                            $sCategory = 'AUG';
+                        if (in_array('annotated_TIS', $aPositions)) {
+                            $sCategory = 'annotated_TIS';
                         } else {
                             $sCategory = 'multiple';
                         }
@@ -163,7 +164,8 @@ foreach ($aSamples as $sSampleID => $aSample) {
                     // We have now determined the category. Store, and count.
                     // FIXME: We can also just inject directly into $aSample, so we don't need to reload $aSample later.
                     // Anyways we don't need this information outside of this loop.
-                    $aSamples[$sSampleID]['data'][$bCutOff][$sCategory] ++;
+                    $aSamples[$sSampleID]['data'][$bCutOff][$sCategory][0] ++;
+                    $aSamples[$sSampleID]['data'][$bCutOff][$sCategory][1] += $nCoverage;
                 }
             }
             print('done, loaded ' . $nPositions . ' positions.' . "\n");
@@ -196,10 +198,10 @@ foreach ($aSamples as $sSampleID => $aSample) {
             (!$bCutOff? '' :
                 '# ' . $aSample['F'][!$bCutOff] . "\n" .
                 '# ' . $aSample['R'][!$bCutOff] . "\n") .
-            '# Category' . "\t" . 'Number of TSSs found' . "\n");
+            '# Category' . "\t" . 'Number of TSSs found' . "\t" . 'Total coverage' . "\n");
 
         foreach ($_SETT['categories'] as $sCategory) {
-            fputs($fOut, $sCategory . "\t" . ($aSample['data'][$bCutOff][$sCategory] + (!$bCutOff? 0 : $aSample['data'][!$bCutOff][$sCategory])) . "\n");
+            fputs($fOut, $sCategory . "\t" . ($aSample['data'][$bCutOff][$sCategory][0] + (!$bCutOff? 0 : $aSample['data'][!$bCutOff][$sCategory][0])) . "\t" . ($aSample['data'][$bCutOff][$sCategory][1] + (!$bCutOff? 0 : $aSample['data'][!$bCutOff][$sCategory][1])) . "\n");
         }
     }
     print('done.' . "\n\n");
