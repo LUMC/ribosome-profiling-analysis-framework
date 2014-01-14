@@ -7,17 +7,17 @@
  * and the coverage per sample is shown.
  *
  * Created     : 2013-10-08
- * Modified    : 2013-12-12
- * Version     : 0.3
+ * Modified    : 2014-01-14
+ * Version     : 0.4
  *
- * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.4',
         'output_suffix' => '.merged_ORF_analyses.txt',
     );
 
@@ -101,7 +101,7 @@ foreach ($aFiles as $sFile) {
         }
         // We're looking at the data, or just before.
         // If we don't have a gene yet, look for it.
-        if (preg_match('/^(.+)\tPositions found:\t\d+\tPositions analyzed:\t\d+\tTSS found:\t\d+$/', $sLine, $aRegs)) {
+        if (preg_match('/^(.+)\tPositions found:\t\d+\tPositions analyzed:\t\d+\tTIS found:\t\d+$/', $sLine, $aRegs)) {
             $sGene = $aRegs[1];
         }
         if ($sGene && preg_match('/^(chr(\d+|[XYM])):(\d+)\t(\d+)(\t[0-9*-]+)+$/', $sLine, $aRegs)) {

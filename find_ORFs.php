@@ -7,17 +7,17 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2013-11-21
- * Version     : 0.5 // 0.4 was version 2013-10-10, archived 2013-11-15.
+ * Modified    : 2014-01-14
+ * Version     : 0.6 // 0.4 was version 2013-10-10, archived 2013-11-15.
  *
- * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.5',
+        'version' => '0.6',
         'min_coverage' => 3,      // Positions with less coverage than this are ignored. NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         'max_upstream' => 500,    // Maximum distance from known CDS look for ORFs.
         'max_downstream' => 500,  // Maximum distance from known CDS look for ORFs.
@@ -528,7 +528,7 @@ fputs($aFilesOut['stats']['handler'], 'Genes discarded, no peaks found:' . "\t" 
 
 
 
-fputs($aFilesOut['results_after_cutoff']['handler'], 'The following results are found in the coding region, at a distance to the TSS of at least ' . $_SETT['peak_finding']['candidate_min_distance_reported_separately'] . ' nucleotides.' . "\n\n");
+fputs($aFilesOut['results_after_cutoff']['handler'], 'The following results are found in the coding region, at a distance to the TIS of at least ' . $_SETT['peak_finding']['candidate_min_distance_reported_separately'] . ' nucleotides.' . "\n\n");
 foreach ($aResults as $sGene => $aGene) {
     $nOriCandidates = count($aPositionsPerGene[$sGene]['unique_positions']);
     $nCandidatesAnalyzed = count($aPositionsPerGene[$sGene]['unique_positions_analyzed']);
@@ -536,12 +536,12 @@ foreach ($aResults as $sGene => $aGene) {
     $aTranscripts = array_keys($aPositionsPerGene[$sGene]['positions']);
     if ($aGene['report_separately']) {
         // Gene has at least one position that needs to be reported separately.
-        fputs($aFilesOut['results_after_cutoff']['handler'], $sGene . "\t" . 'Positions found:' . "\t" . $nOriCandidates . "\t" . 'Positions analyzed:' . "\t" . $nCandidatesAnalyzed . "\t" . 'TSS found:' . "\t" . $nResults . "\n" .
+        fputs($aFilesOut['results_after_cutoff']['handler'], $sGene . "\t" . 'Positions found:' . "\t" . $nOriCandidates . "\t" . 'Positions analyzed:' . "\t" . $nCandidatesAnalyzed . "\t" . 'TIS found:' . "\t" . $nResults . "\n" .
             'G_Position' . "\t" . 'Coverage' . "\t" . implode("\t", $aTranscripts) . "\n");
     }
     if ($aGene['report_separately'] < count($aGene['positions'])) {
         // Gene has at least one position that needs to be reported in the normal results file.
-        fputs($aFilesOut['results']['handler'], $sGene . "\t" . 'Positions found:' . "\t" . $nOriCandidates . "\t" . 'Positions analyzed:' . "\t" . $nCandidatesAnalyzed . "\t" . 'TSS found:' . "\t" . $nResults . "\n" .
+        fputs($aFilesOut['results']['handler'], $sGene . "\t" . 'Positions found:' . "\t" . $nOriCandidates . "\t" . 'Positions analyzed:' . "\t" . $nCandidatesAnalyzed . "\t" . 'TIS found:' . "\t" . $nResults . "\n" .
             'G_Position' . "\t" . 'Coverage' . "\t" . implode("\t", $aTranscripts) . "\n");
     }
     if ($sArgStrand == '+') {

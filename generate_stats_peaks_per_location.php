@@ -8,8 +8,8 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-01-08
- * Version     : 0.1
+ * Modified    : 2014-01-14
+ * Version     : 0.2
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -18,7 +18,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'output_suffix' => '.ORF_analysis_results.stats_peaks_per_location.txt',
         'categories' =>
         array(
@@ -198,7 +198,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
             (!$bCutOff? '' :
                 '# ' . $aSample['F'][!$bCutOff] . "\n" .
                 '# ' . $aSample['R'][!$bCutOff] . "\n") .
-            '# Category' . "\t" . 'Number of TSSs found' . "\t" . 'Total coverage' . "\n");
+            '# Category' . "\t" . 'Number of TISs found' . "\t" . 'Total coverage' . "\n");
 
         foreach ($_SETT['categories'] as $sCategory) {
             fputs($fOut, $sCategory . "\t" . ($aSample['data'][$bCutOff][$sCategory][0] + (!$bCutOff? 0 : $aSample['data'][!$bCutOff][$sCategory][0])) . "\t" . ($aSample['data'][$bCutOff][$sCategory][1] + (!$bCutOff? 0 : $aSample['data'][!$bCutOff][$sCategory][1])) . "\n");
