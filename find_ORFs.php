@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2014-01-14
- * Version     : 0.6 // 0.4 was version 2013-10-10, archived 2013-11-15.
+ * Modified    : 2014-01-27
+ * Version     : 0.7 // 0.4 was version 2013-10-10, archived 2013-11-15.
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -17,7 +17,7 @@
 
 $_SETT =
     array(
-        'version' => '0.6',
+        'version' => '0.7',
         'min_coverage' => 3,      // Positions with less coverage than this are ignored. NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         'max_upstream' => 500,    // Maximum distance from known CDS look for ORFs.
         'max_downstream' => 500,  // Maximum distance from known CDS look for ORFs.
@@ -84,6 +84,20 @@ foreach ($_SETT['output_suffix'] as $sType => $sSuffix) {
 }
 
 
+
+// Write settings to Stats file.
+// Ugly looking code, but whatever.
+foreach ($_SETT as $key => $val) {
+    if (is_array($val)) {
+        fputs($aFilesOut['stats']['handler'], $key . ':' . "\n");
+        foreach ($val as $key2 => $val2) {
+            fputs($aFilesOut['stats']['handler'], '  ' . $key2 . ':' . $val2 . "\n");
+        }
+    } else {
+        fputs($aFilesOut['stats']['handler'], $key . ':' . $val . "\n");
+    }
+}
+fputs($aFilesOut['stats']['handler'], "\n");
 
 
 
@@ -208,13 +222,14 @@ foreach ($aMutalyzerResults as $sLine) {
             if (preg_match('/^([NX]R_\d+)/', $sVOT)) {
                 // Non-coding RNA... ignore it, even though it probably doesn't do much.
                 continue;
-            } elseif (!preg_match('/^([NX][RM]_\d+)\.\d+:(.+)/', $sVOT, $aRegs)) {
+            } elseif (!preg_match('/^(([NX][RM]_\d+)\.\d+):(.+)/', $sVOT, $aRegs)) {
                 die("\n" .
                     'Cannot parse variant ' . $sVOT . "\n");
             }
 
-            $sTranscript = $aRegs[1];
-            $sPosition = $aRegs[2];
+            $sTranscriptWithVersion = $aRegs[1];
+            $sTranscript = $aRegs[2];
+            $sPosition = $aRegs[3];
             // Check if we have info on the transcript, then check strand and store positions!
             if (!isset($aTranscripts[$sTranscript])) {
                 // This happens quite a lot...
@@ -228,7 +243,7 @@ foreach ($aMutalyzerResults as $sLine) {
                 // Correct strand!
                 if (preg_match('/^[cn]\.(\*)?(\-?\d+)del$/', $sPosition, $aRegs)) {
                     // Got one!
-                    $aCodonOptions[$sTranscript] = $aRegs[1] . $aRegs[2];
+                    $aCodonOptions[$sTranscriptWithVersion] = $aRegs[1] . $aRegs[2];
                     if ($aRegs[1]) {
                         // 3'UTR!
                         $b3UTR = true;
@@ -300,18 +315,19 @@ foreach ($aMutalyzerResults as $sLine) {
 
 
         // Now that we're done filtering, save all positions per gene, so we can loop through it and try and find patterns.
-        foreach ($aCodonOptions as $sTranscript => $sPosition) {
+        foreach ($aCodonOptions as $sTranscriptWithVersion => $sPosition) {
+            $sTranscript = substr($sTranscriptWithVersion, 0, strpos($sTranscriptWithVersion, '.'));
             list($sGene, $sStrand) = $aTranscripts[$sTranscript];
             // Create gene array if it doesn't exist.
             if (!isset($aPositionsPerGene[$sGene])) {
                 $aPositionsPerGene[$sGene] = array('chr' => $sChr, 'strand' => $sStrand, 'positions' => array(), 'unique_positions' => array(), 'unique_positions_analyzed' => array());
             }
             // If we don't know this transcript yet, add it to the list.
-            if (!isset($aPositionsPerGene[$sGene]['positions'][$sTranscript])) {
-                $aPositionsPerGene[$sGene]['positions'][$sTranscript] = array();
+            if (!isset($aPositionsPerGene[$sGene]['positions'][$sTranscriptWithVersion])) {
+                $aPositionsPerGene[$sGene]['positions'][$sTranscriptWithVersion] = array();
             }
             // Store position on transcript.
-            $aPositionsPerGene[$sGene]['positions'][$sTranscript][$sPosition] = $nPosition;
+            $aPositionsPerGene[$sGene]['positions'][$sTranscriptWithVersion][$sPosition] = $nPosition;
         }
 
     } elseif (count($aLine) == 1) {
