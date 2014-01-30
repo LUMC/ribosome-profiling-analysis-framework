@@ -101,7 +101,7 @@ foreach ($aFiles as $sFile) {
         }
         // We're looking at the data, or just before.
         // If we don't have a gene yet, look for it.
-        if (preg_match('/^(.+)\tPositions found:\t\d+\tPositions analyzed:\t\d+\tTIS found:\t\d+$/', $sLine, $aRegs)) {
+        if (preg_match('/^(.+)\tPositions found:\t\d+\tPositions analyzed:\t\d+\tT[IS]S found:\t\d+$/', $sLine, $aRegs)) {
             $sGene = $aRegs[1];
         }
         if ($sGene && preg_match('/^(chr(\d+|[XYM])):(\d+)\t(\d+)(\t[0-9*-]+)+$/', $sLine, $aRegs)) {
