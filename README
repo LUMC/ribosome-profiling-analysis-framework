@@ -125,15 +125,25 @@ by using the match_mutalyzer_output_to_batchfile.sh script.
 Usage:
 ./match_mutalyzer_output_to_batchfile.sh <MUTALYZER_OUTPUT_FILES> <BATCH_FILES>
 
-The results files can be analyzed using the analyze_codon_positions.php script,
-that checks if the ribosomes have indeed been stopped at the start sites.
+The results files can be analyzed using the analyze_triplet_periodicity.php
+script, that checks the triplet periodicity and shows if the ribosomes have
+indeed been stopped at the start sites.
 Usage:
-./analyze_codon_positions.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
+./analyze_triplet_periodicity.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
 
 Example:
-./analyze_codon_positions.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
+./analyze_triplet_periodicity.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
   mm10_gene_list.txt F
 (Valid values for Strand: +, -, F and R)
+
+Produces:
+- Direct output to the screen (which should then be saved to a file if needed)
+  with detailed statistics about the mapping of the positions to the
+  transcriptome by Mutalyzer, followed by a list of positions relative to the
+  translation start site, and the total coverage for each position.
+  Included in this list are positions %1, %2 and %3, which are the sum of all
+  first, second and third bases respectively, of the codons in the coding
+  region.
 
 The script does the following things:
 + Read out the coverage information from the Wiggle file
