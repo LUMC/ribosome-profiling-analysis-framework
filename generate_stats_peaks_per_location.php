@@ -8,8 +8,8 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-01-30
- * Version     : 0.3
+ * Modified    : 2014-02-19
+ * Version     : 0.4
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -18,7 +18,7 @@
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.4',
         'output_suffix' =>
         array(
             'stats' => '.ORF_analysis_results.stats_peaks_per_location.txt',
@@ -292,6 +292,23 @@ foreach ($aSamples as $sSampleID => $aSample) {
 
                     // v.0.3: Also store the raw peak data, so that we can show it. Only for when BEFORE the cut off.
                     if (!$bCutOff) {
+                        // v.0.4: Changed the way the positions are stored; now in a big array.
+                        // For 5'UTR peaks, we store *all* positions to be able to report *all* upstream sequences.
+                        $aAllPositions = array();
+                        if ($sCategory == '5UTR') {
+                            foreach ($aPositionsInGene as $key => $sPositionInGene) {
+                                if ($sPositionInGene == '-') {
+                                    // There was no mapping on this transcript.
+                                    continue;
+                                }
+                                if ($sPositionInGene{0} == '-' && $sPositionInGene < -12 && !isset($aAllPositions[$sPositionInGene])) {
+                                    // 5'UTR position, that we haven't seen before (we're looking for unique positions; -15 twice is useless).
+                                    $aAllPositions[$sPositionInGene] = array($sPositionInGene + 12, $aTranscripts[$key]);
+                                }
+                            }
+                        }
+
+                        // Pick transcript and report detailed information.
                         $key = (int) array_search($sCategory, $aPositions); // If the search returns false (category = 'multiple'), we'll get the first.
                         $sTranscript = $aTranscripts[$key];
                         $sPositionInGene = $aPositionsInGene[$key];
@@ -302,7 +319,14 @@ foreach ($aSamples as $sSampleID => $aSample) {
                         } else {
                             $sPositionInGeneShifted = $sPositionInGene + 12;
                         }
-                        $aSamples[$sSampleID]['peak_data'][$sCategory][] = array($sChr . ':' . $nPosition, $sChr . ':' . ($sStrand == 'F'? $nPosition + 12 : $nPosition - 12), $sGene, $sStrand, $nCoverage, $sTranscript, $sPositionInGene, $sPositionInGeneShifted);
+
+                        // v.0.4: Changed the way the positions are stored; now in a big array.
+                        if (!$aAllPositions) {
+                            // No positions stored yet, put in the selected one.
+                            $aAllPositions[$sPositionInGene] = array($sPositionInGeneShifted, $sTranscript);
+                        }
+
+                        $aSamples[$sSampleID]['peak_data'][$sCategory][] = array($sChr . ':' . $nPosition, $sChr . ':' . ($sStrand == 'F'? $nPosition + 12 : $nPosition - 12), $sGene, $sStrand, $nCoverage, $aAllPositions);
                         $aSamples[$sSampleID]['peak_count'] ++;
                     }
                 }
@@ -393,99 +417,116 @@ foreach ($aSamples as $sSampleID => $aSample) {
                     continue 2; // We will only have more non-5'UTR that follow.
                 }
 
+                // v.0.4: Changed the way the positions are stored; now in a big array.
+                // For 5'UTR peaks, we report *all* positions and upstream sequences.
+                $aAllPositions = array_pop($aTIS);
+
                 // Map data with column names.
                 array_unshift($aTIS, $sCategory);
                 $aTIS = array_combine($aHeaders, array_pad($aTIS, $nHeaders, ''));
 
-                // Remove the values we don't show for the Multiple group.
-                if ($sCategory == 'multiple') {
-                    $aTIS['RefSeqID'] = $aTIS['PeakPosTrans'] = $aTIS['PosTrans+12'] = '';
-                }
+                foreach ($aAllPositions as $sPositionInGene => $aPosition) {
+                    list($sPositionInGeneShifted, $sRefSeqID) = $aPosition;
 
-                // Now check if we already have the file in the cache; otherwise, download.
-                if ($aTIS['RefSeqID']) {
-                    if (!isset($aNMCache[$aTIS['RefSeqID']])) {
-                        // File hasn't been parsed yet.
-                        $sNMFile = $_SETT['NM_cache_dir'] . $aTIS['RefSeqID'] . '.gb';
-                        if (!is_file($sNMFile)) {
-                            // In fact, it hasn't been downloaded yet!
-                            $fNM = fopen($sNMFile, 'w');
-                            $sNM = file_get_contents('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=' . $aTIS['RefSeqID'] . '&rettype=gb');
-                            if (!$sNM) {
-                                // Failed to download NM.
-                                die("\n" .
-                                    'Failed to download NM sequence for ' . $aTIS['RefSeqID'] . "\n");
-                            }
-                            fputs($fNM, $sNM);
-                            fclose($fNM);
-                        } else {
-                            $sNM = file_get_contents($sNMFile);
-                        }
-
-                        // Parse NM, isolate sequence and isolate CDS position.
-                        $aNMCache[$aTIS['RefSeqID']] = array();
-                        if (!preg_match('/^\s+CDS\s+(\d+)\.\.(\d+)$/m', $sNM, $aRegs)) {
-//                            die("\n" .
-//                                'Failed to find CDS for ' . $aTIS['RefSeqID'] . "\n");
-                            $nCDSstart = $nCDSend = 0;
-                        } else {
-                            list(,$nCDSstart, $nCDSend) = $aRegs;
-                        }
-                        // Get sequence.
-                        list(,$sSequenceRaw) = preg_split('/^ORIGIN\s+$/m', $sNM, 2);
-                        $sSequence = rtrim(preg_replace('/[^a-z]+/', '', $sSequenceRaw), "\n/");
-                        $aNMCache[$aTIS['RefSeqID']] = array($nCDSstart, $nCDSend, $sSequence);
+                    if ($sCategory == 'multiple') {
+                        // Remove the values we don't show for the Multiple group.
+                        $aTIS['RefSeqID'] = $aTIS['PeakPosTrans'] = $aTIS['PosTrans+12'] = '';
+                    } else {
+                        $aTIS['RefSeqID'] = $sRefSeqID;
+                        $aTIS['PeakPosTrans'] = $sPositionInGene;
+                        $aTIS['PosTrans+12'] = $sPositionInGeneShifted;
                     }
 
-                    list($nCDSstart, $nCDSend, $sSequence) = $aNMCache[$aTIS['RefSeqID']];
-                    // Get Motif or upstream sequence.
-                    if ($sType == 'peak_classification' && $nCDSstart) {
-                        // Fetch motif.
-                        if ($aTIS['PosTrans+12'] < 0) {
-                            // Upstream.
+                    // Now check if we already have the file in the cache; otherwise, download.
+                    if ($aTIS['RefSeqID']) {
+                        if (!isset($aNMCache[$aTIS['RefSeqID']])) {
+                            // File hasn't been parsed yet.
+                            $sNMFile = $_SETT['NM_cache_dir'] . $aTIS['RefSeqID'] . '.gb';
+                            if (!is_file($sNMFile)) {
+                                // In fact, it hasn't been downloaded yet!
+                                $fNM = fopen($sNMFile, 'w');
+                                $sNM = file_get_contents('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=' . $aTIS['RefSeqID'] . '&rettype=gb');
+                                if (!$sNM) {
+                                    // Failed to download NM.
+                                    die("\n" .
+                                        'Failed to download NM sequence for ' . $aTIS['RefSeqID'] . "\n");
+                                }
+                                fputs($fNM, $sNM);
+                                fclose($fNM);
+                            } else {
+                                $sNM = file_get_contents($sNMFile);
+                            }
+
+                            // Parse NM, isolate sequence and isolate CDS position.
+                            $aNMCache[$aTIS['RefSeqID']] = array();
+                            if (!preg_match('/^\s+CDS\s+(\d+)\.\.(\d+)$/m', $sNM, $aRegs)) {
+//                                die("\n" .
+//                                    'Failed to find CDS for ' . $aTIS['RefSeqID'] . "\n");
+                                $nCDSstart = $nCDSend = 0;
+                            } else {
+                                list(,$nCDSstart, $nCDSend) = $aRegs;
+                            }
+                            // Get sequence.
+                            list(,$sSequenceRaw) = preg_split('/^ORIGIN\s+$/m', $sNM, 2);
+                            $sSequence = rtrim(preg_replace('/[^a-z]+/', '', $sSequenceRaw), "\n/");
+                            $aNMCache[$aTIS['RefSeqID']] = array($nCDSstart, $nCDSend, $sSequence);
+                        }
+
+                        list($nCDSstart, $nCDSend, $sSequence) = $aNMCache[$aTIS['RefSeqID']];
+                        // Get Motif or upstream sequence.
+                        if ($sType == 'peak_classification' && $nCDSstart) {
+                            // Fetch motif.
+                            if ($aTIS['PosTrans+12'] < 0) {
+                                // Upstream.
+                                if (!$nCDSstart) {
+                                    // No annotated CDS found (could not parse)
+                                    $sMotif = 'could_not_parse_CDS';
+                                } elseif ($nCDSstart == 1) {
+                                    $sMotif = 'no_5UTR';
+                                } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
+                                    // No upstream sequence, or not enough upstream sequence available.
+                                    $sMotif = 'extended_5UTR';
+                                } else {
+                                    $sMotif = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), 3);
+                                }
+                            } else {
+                                // Compensate 3'UTR reads.
+                                if (substr($aTIS['PosTrans+12'], 0, 1) == '*') {
+                                    $nPosMotif = substr($aTIS['PosTrans+12'], 1) + $nCDSend;
+                                } else {
+                                    $nPosMotif = $aTIS['PosTrans+12'];
+                                }
+                                $sMotif = substr($sSequence, ($nCDSstart+$nPosMotif-2), 3);
+                            }
+                            $aTIS['Motif'] = $sMotif;
+                        } else {
+                            // For 5'UTR (all we see here), get the whole upstream sequence.
                             if (!$nCDSstart) {
                                 // No annotated CDS found (could not parse)
-                                $sMotif = 'could_not_parse_CDS';
+                                $sUpstreamSequence = 'could_not_parse_CDS';
                             } elseif ($nCDSstart == 1) {
-                                $sMotif = 'no_5UTR';
+                                $sUpstreamSequence = 'no_5UTR';
                             } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
                                 // No upstream sequence, or not enough upstream sequence available.
-                                $sMotif = 'extended_5UTR';
+                                $sUpstreamSequence = 'extended_5UTR';
                             } else {
-                                $sMotif = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), 3);
+                                $sUpstreamSequence = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), abs($aTIS['PosTrans+12']));
                             }
-                        } else {
-                            // Compensate 3'UTR reads.
-                            if (substr($aTIS['PosTrans+12'], 0, 1) == '*') {
-                                $nPosMotif = substr($aTIS['PosTrans+12'], 1) + $nCDSend;
-                            } else {
-                                $nPosMotif = $aTIS['PosTrans+12'];
-                            }
-                            $sMotif = substr($sSequence, ($nCDSstart+$nPosMotif-2), 3);
-                        }
-                        $aTIS['Motif'] = $sMotif;
-                    } else {
-                        // For 5'UTR (all we see here), get the whole upstream sequence.
-                        if (!$nCDSstart) {
-                            // No annotated CDS found (could not parse)
-                            $sUpstreamSequence = 'could_not_parse_CDS';
-                        } elseif ($nCDSstart == 1) {
-                            $sUpstreamSequence = 'no_5UTR';
-                        } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
-                            // No upstream sequence, or not enough upstream sequence available.
-                            $sUpstreamSequence = 'extended_5UTR';
-                        } else {
-                            $sUpstreamSequence = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), abs($aTIS['PosTrans+12']));
-                        }
-                        $aTIS['DNASeqToAUG'] = $sUpstreamSequence;
+                            $aTIS['DNASeqToAUG'] = $sUpstreamSequence;
 
-                        // Now, get it translated.
-                        $sProteinSequence = RPF_translateDNA($sUpstreamSequence);
-                        $aTIS['ProtSeqToAUG'] = $sProteinSequence;
+                            // Now, get it translated.
+                            $sProteinSequence = RPF_translateDNA($sUpstreamSequence);
+                            $aTIS['ProtSeqToAUG'] = $sProteinSequence;
+                        }
+                    }
+
+                    fputs($aSample['file_out'][$sType]['handle'], implode("\t", $aTIS) . "\n");
+
+                    // Only for 5'UTR classification, we show all. Otherwise, just the first will do.
+                    if ($sType != 'peak_classification_5UTR') {
+                        break;
                     }
                 }
-
-                fputs($aSample['file_out'][$sType]['handle'], implode("\t", $aTIS) . "\n");
 
                 if (!($nLine % 50)) {
                     $nPercentageRead = round($nLine/$aSample['peak_count'], 2);
