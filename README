@@ -352,12 +352,13 @@ the found positions.
 
 
 
-13) For some statistics on where in the genes the found TISs are, we can analyze
-the ORF analysis results files of the merged replicates using the
-generate_stats_peaks_per_location.php script. It takes all ORF analysis results
-files, both the results after the cutoff as the ones before, and sums up the
-number of peaks found per location: 5' UTR, annotated TIS, coding, 3' UTR, or
-multiple.
+13) For some statistics on where in the genes the found TISs are, as well as TIS
+motif analysis and reporting of the sequence between each 5'UTR TIS and the
+annotated TIS, we can analyze the ORF analysis results files of the merged
+replicates using the generate_stats_peaks_per_location.php script. It takes all
+ORF analysis results files, both the results after the cutoff as the ones
+before, and sums up the number of peaks found per location: 5' UTR, annotated
+TIS, coding, 3' UTR, or multiple.
 "Multiple" means that the TIS location was mapping to multiple transcripts, and
 in at least two of these, the location was different. An exception here is when
 one of the locations where the TIS maps to, is "annotated_TIS". Then it is
@@ -366,7 +367,7 @@ transcripts.
 
 Note, that to determine the locations of the reads, the positions that are given
 by the find_ORFs.php script have to be increased by 12 bases, since these are
-read starting positions. This means that positions -12 through -10 are counted
+the 5' ends of the reads. This means that positions -12 through -10 are counted
 as annotated TIS. Lower numbers are counted as 5'UTR, while higher numbers
 (> -10) are counted as coding. Positions starting with an asterisk (*) are
 counted as 3'UTR.
@@ -376,16 +377,70 @@ than 12 bp away from the 3'UTR, are counted as coding while in fact in reality
 they represent a read that lies in the 3'UTR. This can not be detected however,
 because we don't know the length of the coding region of the transcripts.
 
+To be able to report the TIS codon motifs and the sequence between each 5'UTR
+TIS and the annotated TIS, the script downloads the RefSeq sequences of the
+transcripts that the read was aligned to automatically from the NCBI website,
+using the URL format:
+http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NM_007386.2.gb&rettype=gb
+
+To prevent repeated downloads on successive runs of the script, it requires an
+"NM cache" directory where all downloaded sequences are stored and can be re-
+used by successive runs. The name of the directory is currently configured in
+the $_SETT settings array within the script. If the directory is not found or
+not writable, the script will complain and refuse execution.
+
 Usage:
 ./generate_stats_peaks_per_location.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
 
 Example:
 ./generate_stats_peaks_per_location.php *ORF_analysis_results*
 
+Produces:
+- *.ORF_analysis_results.stats_peaks_per_location.txt (one per sample)
+  Reports the total number of TISs found as well as the total coverage of found
+  TISs per gene region (5'UTR, annotated TIS, coding, 3'UTR, multiple). Both are
+  reported since a high number of identified TISs may not correlate to also
+  having high coverage in this region.
+  The statistics are reported separately for all peaks before the cutoff and all
+  peaks including the ones after the cutoff.
+- *.ORF_analysis_results.peaks_classification.txt (one per sample)
+  Reports all found TISs before the set cutoff, sorted on category, strand and
+  genomic position. Other fields reported are the "real" genomic position of the
+  TIS, calculated by adding (or substracting, for the negative strand) an offset
+  of 12 nucleotides to the 5' read genomic positions, the gene, the summed
+  coverage of the replicates in that position, the transcript RefSeq ID (only
+  one reported), the position on that transcript including the position with the
+  offset of 12 applied and the sequence of the codon at the reported TIS.
+  For TISs reported in the category "multiple", the information in the last four
+  columns is missing.
+  In case the RefSeq file has no CDS annotated, instead of the motif sequence
+  the error "could_not_parse_CDS" is given.
+  In case the RefSeq file has no 5'UTR annotated (CDS starts at position 1),
+  instead of the motif sequence the error "no_5UTR" is given.
+  In case the RefSeq file has not enough 5'UTR annotated to fetch the full motif
+  sequence (CDS starts at a position smaller than the distance of the TIS to the
+  annotated TIS), instead of the motif sequence the error "extended_5UTR" is
+  given.
+- *.ORF_analysis_results.peaks_classification_5UTR.txt (one per sample)
+  Reports all TISs found in the 5'UTR, sorted on strand and genomic position.
+  The fields reported are very similar to the fields mentioned in the previous
+  file, with the following exceptions: the motif field is missing, and the
+  following two fields are added: the DNA sequence starting at the TIS until the
+  annotated TIS, and the translation of this sequence to protein sequence. If a
+  found TIS can be mapped to different transcripts at different distances from
+  the annotated TIS, all these transcripts are reported on a separate line.
+  The protein sequence can contain a *, which indicates a stop-codon. A ?
+  indicates an incomplete or unrecognizable codon. This should happen only if
+  the sequence is in a different frame compared with the annotated TIS; in this
+  case the DNA sequence given will end with an incomplete codon and the trans-
+  lated sequence will end with a ?.
+  Error messages that might be reported instead of sequence, are explained above
+  in the description of the previous file.
+
 The script is using the given file names to filter out the statistics files
 generated by the find_ORFs.php script. Its own result files, as well as all
 files containing 'ORF_analysis_results_stats', are ignored automatically. Files
-need to contain the strand information ('.F.' or '.R.') and must contain either
+need to contain the strand information ('.F.' or '.R.') and must end with either
 'ORF_analysis_results.txt' or 'ORF_analysis_results_after_cutoff.txt'. Files are
 grouped by their file name's prefix (until the strand information). As such, per
 sample the script can find four files; two forward strand and two reverse
@@ -393,8 +448,3 @@ strand; each a file with peaks before cutoff, and one with peaks after the
 cutoff.
 If files are passed for which the file name is not recognized, they are reported
 and the script will stop processing.
-
-The script counts the number of translation start sites identified per gene
-region, as well as the total coverage in these TISs per gene position. This is
-done since a high number of identified TISs may not correlate to also having
-high coverage in this region.
