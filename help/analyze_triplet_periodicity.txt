@@ -1,0 +1,14 @@
+How to run the script in a loop over several samples:
+
+for sample in A1 A2 A3 B1 B2 B3 C1 C2 C3 D1 D2 D3;
+do
+  for strand in F R;
+  do
+    ./analyze_triplet_periodicity.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" ~/scripts/labj/eleonora/ribosome_profiling/mm10_gene_list.txt $strand > "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_periodicity.txt";
+    echo -n ".";
+  done;
+done;
+echo "";
+
+On one line:
+for sample in A1 A2 A3 B1 B2 B3 C1 C2 C3 D1 D2 D3; do for strand in F R; do ./analyze_triplet_periodicity.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" ~/scripts/labj/eleonora/ribosome_profiling/mm10_gene_list.txt $strand > "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_periodicity.txt"; echo -n "."; done; done; echo "";
