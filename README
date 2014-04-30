@@ -448,3 +448,58 @@ strand; each a file with peaks before cutoff, and one with peaks after the
 cutoff.
 If files are passed for which the file name is not recognized, they are reported
 and the script will stop processing.
+
+
+
+
+
+ADDITIONAL SCRIPTS
+--------------------------------------------------------------------------------
+1) mrna_sequence_report.php
+
+Purpose:
+Takes labels and genomic positions from a file manually generated, imports the
+transcriptomic coordinates from the ORF analysis results file(s), fetches the
+sequence of the TSS until the end of the transcript, translates the sequence,
+and reports the protein sequence until the first stop.
+
+Usage:
+./mrna_sequence_report.php POSITIONS_FILE [PEAKS_CLASSIFICATION_FILE [...]]
+
+Example:
+./mrna_sequence_report.php list_for_TPPanalysis.txt
+or
+./mrna_sequence_report.php list_for_TPPanalysis.txt \
+    merged_A.merged_wiggle.ORF_analysis_results.peaks_classification.txt \
+    merged_C.merged_wiggle.ORF_analysis_results.peaks_classification.txt
+
+If no specific peaks classification files are passed as arguments, all files in
+the current directory ending in '.ORF_analysis_results.peaks_classification.txt'
+are parsed.
+
+Input file format example:
+>RPL7_atg_outofframe
+chr1:16103318
+>RPL34_aag_inframe
+chr3:130728824
+>RPL34_aga_outofframe
+chr3:130728823
+
+Produces:
+One file (input file name with suffix '.mRNA_sequence_report.txt'), with the
+used peaks classification files in the headers, and the following format:
+# /home/ifokkema/scripts/labj/eleonora/ribosome_profiling/mrna_sequence_report.php v.0.1
+# Imported transcriptomic positions from merged_A.merged_wiggle.ORF_analysis_results.peaks_classification.txt
+# Imported transcriptomic positions from merged_C.merged_wiggle.ORF_analysis_results.peaks_classification.txt
+
+# PeakPosGenomic	RefSeqID	PosTrans+12	DNASeq	ProtSeqToSTOP
+>RPL7_atg_outofframe
+chr1:16103318	NM_011291.5	218	atgagaaggcaaagcactatcacaaggagtacaggcagatgtaccgcactgagattcggatggccaggatggcaaggaaagctggcaacttctatgtgcccgcagaaccaaagctggcctttgtcatcagaattcgaggtatcaatggagtaagcccaaaggttcgtaaggttctgcagctccttcgtcttcgacagatcttcaatggcacctttgttaagctcaacaaggcttcaattaacatgctgcggattgtggagccatacattgcatgggggtaccccaacctgaagtcagtaaacgagctcatctacaagcgaggctacggcaaaatcaacaagaagcggattgccttgacagataattccttgattgctcggtctcttggtaagtttggcatcatctgcatggaggatctaattcatgagatctatacagtcgggaaacgcttcaaggaagcaaataacttcctgtggcccttcaagttatcttccccacgaggtgggatgaagaaaaagacaactcactttgtagaaggtggagatgctggcaacagggaagaccagataaacaggcttattagacggatgaactaaggtgtcacccattgtatttttgtaatctggtcagttaataaacagtcacagcttggcaaattgaaaaaa	MRRQSTITRSTGRCTALRFGWPGWQGKLATSMCPQNQSWPLSSEFEVSME*
+>RPL34_aag_inframe
+chr3:130728824	NM_001005859.2	205	aagacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtgaaagtcttgaaggcacaagcacagagtcagaaagcaaaatagatatgcacattttttaagtaataaaaatcaagacttga	KTQKHVSRAYGGSMCAKCVRDRIKRAFLIEEQKIVVKVLKAQAQSQKAK*
+>RPL34_aga_outofframe
+chr3:130728823	NM_001005859.2	206	agacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtgaaagtcttgaaggcacaagcacagagtcagaaagcaaaatagatatgcacattttttaagtaataaaaatcaagacttga	RHRSTSAGPMAAPCVPSVSVTGSSGLSLLRSRKSL*
+
+
+
+
