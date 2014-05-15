@@ -41,6 +41,7 @@ distance to the 5' intron is unknown.
 A distance of 15 bases to the ATG is currently the default threshold.
 
 Usage: ./find_intron_distance_to_ATG.php path_to_seq_gene.md
+
 Produces:
 - seq_gene.md.distance_intron_to_ATG.txt
   Lists all transcripts where the distance of the intron to the ATG is 15 or
@@ -56,6 +57,7 @@ tome, unsupported transcripts removed, you end up with SAM files.
 The SAM files are first packed, reducing them in size and grouping the reads
 together to generate a file that sums the coverage per transcript per position.
 For this, use the pack_sam_files.php file.
+
 Usage: ./pack_sam_files.php SAM_FILE1 [SAM_FILE2 [SAM_FILE3 [...]]]
 
 Produces:
@@ -68,14 +70,15 @@ Produces:
 
 4) The packed SAM files can be used to run some statistics. Currently available
 is packed_sam2coverage_per_gene.php.
+
 Usage: ./packed_sam2coverage_per_gene.php path_to_mm10_gene_list.txt \
            PACKED_SAM_FILE1 [ PACKED_SAM_FILE2 [ ... ]]
 
 Produces:
 - One file which name depends on the given SAM files, ending in the suffix
-  .coverage_per_gene.txt, per SAM file, mentioned which transcripts can not be
-  matched to a gene, listing the top 5 unknown transcripts based on their cove-
-  rage and finally, a large table where the samples are presented as columns,
+  .coverage_per_gene.txt, with per SAM file, mentioned which transcripts can not
+  be matched to a gene, listing the top 5 unknown transcripts based on their
+  coverage and finally, a large table where the samples are presented as columns
   and on each line the genes are given with the coverage in each sample. The
   genes are sorted on total coverage in all samples together.
 
@@ -87,11 +90,16 @@ many reads are mapped to non-coding reads.
 5) The packed SAM files are used to generate Wiggle files. For this, use the
 packed_sam2wiggle.php script, which needs the transcript positions file descri-
 bed in 1).
+
 Usage: ./packed_sam2wiggle.php TRANSCRIPT_POSITIONS_FILE \
            PACKED_SAM_FILE1 [PACKED_SAM_FILE2 [PACKED_SAM_FILE3 [...]]
 
-This script creates 4 Wiggle files per SAM file; F unfiltered, F filtered (NR
-and XR removed), R unfiltered, and R filtered.
+Produces:
+- 4 Wiggle files per SAM file;
+  + F unfiltered,
+  + F filtered (NR and XR removed),
+  + R unfiltered,
+  + R filtered (NR and XR removed).
 
 
 
@@ -104,9 +112,15 @@ For detailed information, see the help file help/merge_wigglefiles.txt.
 
 7) Wiggle files are converted to Mutalyzer position converter batch files using
 the wig2batchfile.php script.
+
 Usage: ./wig2batchfile.php WIG_FILE
-It can create one mutalyzer file for multiple Wiggle files, but the analysis
-script does not support that, so then they would need to be split afterwards.
+
+Produces:
+- One Mutalyzer batch input file. If multiple Wiggle files are passed as argu-
+  ments, the script will generate one big Mutalyzer batch input file. However,
+  please note that the analysis script does not support working with one large
+  Mutalyzer result file, so it means you'll have to split it again after running
+  Mutalyzer.
 
 
 
@@ -122,18 +136,23 @@ https://test.mutalyzer.nl/batchPositionConverter
 9) When done, the results are downloaded from Mutalyzer. If you're not sure
 anymore which results file belongs to which batchfile, you can match these files
 by using the match_mutalyzer_output_to_batchfile.sh script.
+
 Usage:
 ./match_mutalyzer_output_to_batchfile.sh <MUTALYZER_OUTPUT_FILES> <BATCH_FILES>
+
+This script will rename the Mutalyzer results files according to the batch input
+files.
 
 The results files can be analyzed using the analyze_triplet_periodicity.php
 script, that checks the triplet periodicity and shows if the ribosomes have
 indeed been stopped at the start sites.
+
 Usage:
 ./analyze_triplet_periodicity.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
 
 Example:
 ./analyze_triplet_periodicity.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
-  mm10_gene_list.txt F
+  mm10_gene_list.txt F > F.wig5.periodicity.txt
 (Valid values for Strand: +, -, F and R)
 
 Produces:
@@ -175,8 +194,8 @@ The script does the following things:
 
 Possible to do:
 - Multiple 5' UTR *or* multiple 3' UTR mappings are all counted if these
-are the only mappings. Perhaps we should pick the closest, like as if
-both UTR mappings were present.
+  are the only mappings. Perhaps we should pick the closest, like as if
+  both UTR mappings were present.
 
 
 
@@ -184,6 +203,7 @@ both UTR mappings were present.
 find_ORFs.php script tries to identify "peaks" in the coverage pattern as
 alternative open reading frame starts, depending on the coverage of the
 surrounding region.
+
 Usage:
 ./find_ORFs.php <MUTALYZER_RESULTS> <WIGGLE_FILE> <GENE_LIST_FILE> <STRAND>
 
@@ -191,6 +211,22 @@ Example:
 ./find_ORFs.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
   mm10_gene_list.txt F
 (Valid values for Strand: +, -, F and R)
+
+Produces:
+- *.ORF_analysis_results_stats.txt
+  Statistics on the ORF finding run; information on the loaded gene list file
+  and wiggle file, mentions the number of positions left out on each filtering
+  step, and mentions the number of genes left with found translation start
+  sites.
+- *.ORF_analysis_results.txt
+  The results file shows, per gene, the number of positions found, the number
+  actually analyzed as candidate peaks, and the number of TSSs found. These are
+  then reported with the genomic position, the coverage, and per transcript, the
+  position relative to the transcript.
+- *.ORF_analysis_results_after_cutoff.txt
+  This file has the same format of the results file, but shows only TSSs found
+  in the annotated coding region, at least 5000 bases from the annotated TSS.
+  (the value of 5000 can be configured in the script)
 
 The script does the following things:
 + Read out the coverage information from the Wiggle file
@@ -284,11 +320,16 @@ Possible to do:
 merge_ORF_files.php script merges the files for you into one summary file, but
 does not take care of the strands, so you need to make sure you don't mix
 forward and reverse files with each other.
+
 Usage:
 ./merge_ORF_files.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
 
 Example:
-./merge_ORF_files.php *.F.*_ORF_analysis_results.txt
+./merge_ORF_files.php *.F.*.ORF_analysis_results.txt
+
+Produces:
+- One file which name depends on the given input files, ending in the suffix
+  .merged_ORF_analyses.txt. The format is described below.
 
 The script analyzes the file names to isolate the sample IDs. It assumes that
 the sample IDs are the only differences between the input file names. The sample
@@ -387,7 +428,9 @@ To prevent repeated downloads on successive runs of the script, it requires an
 "NM cache" directory where all downloaded sequences are stored and can be re-
 used by successive runs. The name of the directory is currently configured in
 the $_SETT settings array within the script. If the directory is not found or
-not writable, the script will complain and refuse execution.
+not writable, the script will complain and refuse execution. When that happens,
+check if the directory can be made writable. Otherwise create an empty directory
+and set its name in the settings in the script source code.
 
 Usage:
 ./generate_stats_peaks_per_location.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
@@ -486,8 +529,9 @@ chr3:130728824
 chr3:130728823
 
 Produces:
-One file (input file name with suffix '.mRNA_sequence_report.txt'), with the
-used peaks classification files in the headers, and the following format:
+- One file (input file name with suffix '.mRNA_sequence_report.txt'), with the
+  used peaks classification files in the headers, and the following format:
+
 # /home/ifokkema/scripts/labj/eleonora/ribosome_profiling/mrna_sequence_report.php v.0.1
 # Imported transcriptomic positions from merged_A.merged_wiggle.ORF_analysis_results.peaks_classification.txt
 # Imported transcriptomic positions from merged_C.merged_wiggle.ORF_analysis_results.peaks_classification.txt

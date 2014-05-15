@@ -8,8 +8,8 @@
  * sequence, and reports the protein sequence until the first stop.
  *
  * Created     : 2014-04-25
- * Modified    : 2014-04-25
- * Version     : 0.1
+ * Modified    : 2014-05-15
+ * Version     : 0.2
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -18,11 +18,11 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'output_suffix' => '.mRNA_sequence_report.txt',
         'ORF_results_suffix' => '.ORF_analysis_results.peaks_classification.txt',
         'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
-        'terminal_width' => 150,
+        'terminal_width' => 120,
     );
 
 function RPF_translateDNA ($sSequence)
@@ -170,7 +170,7 @@ foreach ($aFiles as $sMappingFile) {
         }
         $aLine = explode("\t", $sLine);
         if (count($aLine) == 10) {
-            list($sChr, $nPosition) = explode(':', $aLine[1], 2);
+            list($sChr, $nPosition) = explode(':', strtolower(trim($aLine[1])), 2); // strtolower() is needed because of typos.
             if (!isset($aMappings[$sChr])) {
                 $aMappings[$sChr] = array();
             }
