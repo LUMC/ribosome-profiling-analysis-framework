@@ -8,8 +8,8 @@
  * sequence, and reports the protein sequence until the first stop.
  *
  * Created     : 2014-04-25
- * Modified    : 2014-05-15
- * Version     : 0.2
+ * Modified    : 2014-05-16
+ * Version     : 0.3
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -18,7 +18,7 @@
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'output_suffix' => '.mRNA_sequence_report.txt',
         'ORF_results_suffix' => '.ORF_analysis_results.peaks_classification.txt',
         'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
@@ -184,7 +184,7 @@ foreach ($aFiles as $sMappingFile) {
     fputs($fFileOut, '# Imported transcriptomic positions from ' . $sMappingFile . "\n");
 }
 fputs($fFileOut, "\n" .
-                 '# PeakPosGenomic' . "\t" . 'RefSeqID' . "\t" . 'PosTrans+12' . "\t" . 'DNASeq' . "\t" . 'ProtSeqToSTOP' . "\n");
+                 '# PeakPosGenomic' . "\t" . 'RefSeqID' . "\t" . 'PosTrans+12' . "\t" . 'DNASeqToSTOP' . "\t" . 'DNASeq' . "\t" . 'ProtSeqToSTOP' . "\n");
 
 
 
@@ -292,16 +292,20 @@ foreach ($aInputFile as $sLine) {
         }
 
 
+        $sSequenceToTranslate = $sSequenceToTranslateToStop = '';
         if ($bTranslatable) {
             $sSequenceToTranslate = substr($sSequence, $nPositionInString);
             $sSequenceProtein = RPF_translateDNA($sSequenceToTranslate);
 
             // Shorten sequence, only show until the first stop.
             $sSequenceProtein = substr($sSequenceProtein, 0, strpos($sSequenceProtein . '*', '*')+1);
+
+            // Then create a short mRNA sequence, up and until the first stop.
+            $sSequenceToTranslateToStop = substr($sSequenceToTranslate, 0, strlen($sSequenceProtein)*3);
         }
 
         // Output...
-        fputs($fFileOut, $sChr . ':' . $nPosition . "\t" . $sTranscript . "\t" . $nPositionOnTranscript . "\t" . $sSequenceToTranslate . "\t" . $sSequenceProtein . "\n");
+        fputs($fFileOut, $sChr . ':' . $nPosition . "\t" . $sTranscript . "\t" . $nPositionOnTranscript . "\t" . $sSequenceToTranslateToStop . "\t" . $sSequenceToTranslate . "\t" . $sSequenceProtein . "\n");
     }
 
     // Clean up...
