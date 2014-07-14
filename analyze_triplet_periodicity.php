@@ -7,17 +7,22 @@
  * and presents the results.
  *
  * Created     : 2013-04-16
- * Modified    : 2013-10-10
- * Version     : 0.3
+ * Modified    : 2014-07-14
+ * Version     : 0.4
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.4
+ *               Fixed problem with parsing the Wiggle files; we were skipping
+ *               the chrom=NC_* header, adding its positions to the last used
+ *               chromosome (usually chrY).
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.4',
         'min_coverage' => 3,
         'max_upstream' => 500,
         'max_downstream' => 500,
@@ -68,7 +73,7 @@ $nChroms = 0;
 $sChrom = '';
 print('Parsing Wiggle file... ');
 foreach ($aWiggleFile as $sLine) {
-    if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
+    if (preg_match('/^variableStep chrom=(.+)$/', $sLine, $aRegs)) {
         // Chromosome found.
 //        if (!preg_match('/^chr([0-9]+|[XYM])$/', $aRegs[1])) { // FOR NOW, IGNORE chrM!!!
         if (!preg_match('/^chr([0-9]+|[XY])$/', $aRegs[1])) {

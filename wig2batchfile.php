@@ -6,8 +6,8 @@
  * the position converter van be used.
  *
  * Created     : 2013-04-10
- * Modified    : 2013-08-13
- * Version     : 0.2
+ * Modified    : 2014-07-10
+ * Version     : 0.3
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -16,12 +16,15 @@
  *               While generating the batchfile, the wiggle file is already
  *               filtered for low coverage. This results in faster conversion,
  *               smaller files, and also less calculation time for Mutalyzer.
+ *               0.3
+ *               Fixed problem with skipping the chrom=NC_* header, adding its
+ *               positions to the last used chromosome (usually chrY).
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.2',
+        'version' => '0.3',
         'min_coverage' => 3,
     );
 
@@ -66,7 +69,7 @@ foreach ($aFiles as $sFile) {
     $aFile = file($sFile);
     $sChrom = '';
     foreach ($aFile as $sLine) {
-        if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
+        if (preg_match('/^variableStep chrom=(.+)$/', $sLine, $aRegs)) {
             // Chromosome found.
 //            if (!preg_match('/^chr([0-9]+|[XYM])$/', $aRegs[1])) { // FOR NOW, IGNORE chrM!!!
             if (!preg_match('/^chr([0-9]+|[XY])$/', $aRegs[1])) {

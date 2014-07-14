@@ -7,17 +7,22 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2014-01-27
- * Version     : 0.7 // 0.4 was version 2013-10-10, archived 2013-11-15.
+ * Modified    : 2014-07-14
+ * Version     : 0.8 // 0.4 was version 2013-10-10, archived 2013-11-15.
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.8
+ *               Fixed problem with parsing the Wiggle files; we were skipping
+ *               the chrom=NC_* header, adding its positions to the last used
+ *               chromosome (usually chrY).
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.7',
+        'version' => '0.8',
         'min_coverage' => 3,      // Positions with less coverage than this are ignored. NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         'max_upstream' => 500,    // Maximum distance from known CDS look for ORFs.
         'max_downstream' => 500,  // Maximum distance from known CDS look for ORFs.
@@ -125,7 +130,7 @@ $nChroms = 0;
 $sChrom = '';
 print('Parsing Wiggle file... ');
 foreach ($aWiggleFile as $sLine) {
-    if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
+    if (preg_match('/^variableStep chrom=(.+)$/', $sLine, $aRegs)) {
         // Chromosome found.
 //        if (!preg_match('/^chr([0-9]+|[XYM])$/', $aRegs[1])) { // FOR NOW, IGNORE chrM!!!
         if (!preg_match('/^chr([0-9]+|[XY])$/', $aRegs[1])) {

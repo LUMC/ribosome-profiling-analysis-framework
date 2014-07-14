@@ -7,17 +7,22 @@
  * and the coverage per sample is shown.
  *
  * Created     : 2013-10-08
- * Modified    : 2014-01-14
- * Version     : 0.4
+ * Modified    : 2014-07-14
+ * Version     : 0.5
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.5
+ *               Fixed problem with parsing the Wiggle files; we were skipping
+ *               the chrom=NC_* header, adding its positions to the last used
+ *               chromosome (usually chrY).
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.4',
+        'version' => '0.5',
         'output_suffix' => '.merged_ORF_analyses.txt',
     );
 
@@ -164,7 +169,7 @@ if ($bMergedReplicates) {
             $aWiggleFile = file($sReplicateFile, FILE_IGNORE_NEW_LINES);
             $sChrom = '';
             foreach ($aWiggleFile as $sLine) {
-                if (preg_match('/^variableStep chrom=(chr.+)$/', $sLine, $aRegs)) {
+                if (preg_match('/^variableStep chrom=(.+)$/', $sLine, $aRegs)) {
                     // Chromosome found.
                     if (!preg_match('/^chr([0-9]+|[XYM])$/', $aRegs[1])) {
                         $sChrom = '';
