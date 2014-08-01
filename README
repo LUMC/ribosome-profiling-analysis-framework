@@ -262,9 +262,8 @@ The script does the following things:
   * Its coverage should be at least as high as that of the positions located 1
     and 2 nucleotides downstream of it.
   * It should show a triplet periodicity and a clear "harringtonine pattern":
-    - The two other nucleotides in the possible codon, so the two nucleotides
-      downstream of the position we're analyzing, should not have an average
-      coverage higher than 20% of the position's coverage.
+    - The first nucleotide of the analyzed codon should have a coverage of at
+      least 60% of the total coverage of that codon (configurable setting).
     - The following 5 codons should also not have a higher maximum coverage than
       this position's coverage.
     - If any of the following 5 codons have a maximum coverage higher than 10%
