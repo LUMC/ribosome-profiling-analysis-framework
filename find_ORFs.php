@@ -8,7 +8,7 @@
  *
  * Created     : 2013-07-12
  * Modified    : 2014-08-01
- * Version     : 0.9
+ * Version     : 0.91
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -31,6 +31,14 @@
  *               0.9     2014-08-01
  *               Peaks should not be called when they do not show the highest
  *               coverage of the codon.
+ *               0.91    2014-08-01
+ *               It sometimes happens that a gene is mapped to two different
+ *               chromosomes (for instance NM_133362.2 (Erdr1)). The current
+ *               data structure only allows for one chromosome per gene, which
+ *               results in errors while analyzing the chromosome mentioned
+ *               second in the Mutalyzer file, because the locations are linked
+ *               to the wrong chromosome and therefore may not be present in the
+ *               Wiggle file. We now report these cases.
  *
  *************/
 
@@ -405,8 +413,17 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
         $aPositionsPerGene[$sGene]['unique_positions'] = array_merge($aPositionsPerGene[$sGene]['unique_positions'], array_values($aPositions));
 
         foreach ($aPositions as $sPosition => $nPosition) {
-            // If notices occur in the line below, the position is in $aMutalyzerResults, but not in $aWiggleFile.
-            // I guess this shouldn't happen!!!
+            if (!isset($aCoverages[$aGene['chr']][$nPosition])) {
+                // This occurs, of the position is in $aMutalyzerResults, but not in $aWiggleFile, for instance if a gene
+                // is located on more than one chromosome (like Erdr1). We already verified in the first loop, that each
+                // position in the Mutalyzer file has a coverage. But our data structure allows only one chromosome per
+                // gene, so the chromosome first mentioned in the Mutalyzer file, is stored.
+                // We choose to report it, because the user may want to know, but on the other hand there's nothing we
+                // can do. Analysis on the chromosome mentioned second in the Mutalyzer file, will not work.
+                print("\n" .
+                      'Position not found, ' . $aGene['chr'] . ':' . $nPosition . ' has no coverage; ' . $sTranscript . ' (' . $sGene . ') found on two chromosomes maybe?');
+                continue;
+            }
             if ($aCoverages[$aGene['chr']][$nPosition] < $_SETT['peak_finding']['min_coverage']) {
                 // Coverage of this peak is not high enough for analysis.
                 continue;
