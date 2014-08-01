@@ -8,8 +8,8 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-02-19
- * Version     : 0.4
+ * Modified    : 2014-07-07
+ * Version     : 0.5
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -18,7 +18,7 @@
 
 $_SETT =
     array(
-        'version' => '0.4',
+        'version' => '0.5',
         'output_suffix' =>
         array(
             'stats' => '.ORF_analysis_results.stats_peaks_per_location.txt',
@@ -467,7 +467,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                 list(,$nCDSstart, $nCDSend) = $aRegs;
                             }
                             // Get sequence.
-                            list(,$sSequenceRaw) = preg_split('/^ORIGIN\s+$/m', $sNM, 2);
+                            @list(,$sSequenceRaw) = preg_split('/^ORIGIN\s+$/m', $sNM, 2); // Ignore notices unknown index 1.
                             $sSequence = rtrim(preg_replace('/[^a-z]+/', '', $sSequenceRaw), "\n/");
                             $aNMCache[$aTIS['RefSeqID']] = array($nCDSstart, $nCDSend, $sSequence);
                         }

@@ -158,11 +158,16 @@ Example:
 Produces:
 - Direct output to the screen (which should then be saved to a file if needed)
   with detailed statistics about the mapping of the positions to the
-  transcriptome by Mutalyzer, followed by a list of positions relative to the
-  translation start site, and the total coverage for each position.
-  Included in this list are positions %1, %2 and %3, which are the sum of all
-  first, second and third bases respectively, of the codons in the coding
-  region.
+  transcriptome by Mutalyzer, followed by the list of positions relative to the
+  translation start site, and the total coverage for each position. Of the posi-
+  tions in the coding region, only the first 6 are shown individually. All posi-
+  tions in the coding region, including the positions up to 15 bases upstream of
+  the coding region, are grouped by their location in the codon (first, second
+  and third base), and displayed as positions %1, %2 and %3 respectively, with
+  the summed coverages to assess the overall triplet periodicity.
+  Positions starting with an asterisk (*) are positions in the 3' UTR. The given
+  number is the relative distance to the stop codon: *1 is the first base after
+  the stop codon.
 
 The script does the following things:
 + Read out the coverage information from the Wiggle file
@@ -188,7 +193,7 @@ The script does the following things:
       region, we assume an intergenic situation and if one of the two
       positions is clearly closer to the coding region than the
       other (> 100bp), then the closest position is picked.
-      If not, the position is reported.
+      If not, the position is discarded, and reported to the user.
     - After this, all mappings are counted by their coverage and
       reported.
 
@@ -254,6 +259,8 @@ The script does the following things:
   Each position, with at least a coverage of 10, is analyzed.
   * Its coverage should be higher than that of the positions located 3, 6, 9, 12
     and 15 nucleotides upstream of it.
+  * Its coverage should be at least as high as that of the positions located 1
+    and 2 nucleotides downstream of it.
   * It should show a triplet periodicity and a clear "harringtonine pattern":
     - The two other nucleotides in the possible codon, so the two nucleotides
       downstream of the position we're analyzing, should not have an average
@@ -262,7 +269,7 @@ The script does the following things:
       this position's coverage.
     - If any of the following 5 codons have a maximum coverage higher than 10%
       of the coverage of the position we're analyzing, that codon must not show
-      a conflicting triplet periodicity pattern (see first point above).
+      a conflicting triplet periodicity pattern (see first two points above).
   * If all these rules apply, the position is stored as a possible ORF start,
     and the analysis is continued 5 codons downstream, but again per nucleotide
     and thus allowing ORF start sites in any frame.

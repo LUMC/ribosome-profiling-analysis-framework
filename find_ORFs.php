@@ -7,16 +7,30 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2014-07-14
- * Version     : 0.8 // 0.4 was version 2013-10-10, archived 2013-11-15.
+ * Modified    : 2014-08-01
+ * Version     : 0.9
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
- * Changelog   : 0.8
+ * Changelog   : 0.5     2013-11-21
+ *               New algorithm to detect ORF start sites.
+ *               Archived 0.4 (2013-10-10)
+ *               0.6     2014-01-14
+ *               Changed mentions of TSS to TIS, so that the Translation
+ *               Initiation Site is not confused with Transcription Start Site.
+ *               0.7     2014-01-27
+ *               It now logs the current settings into the stats file, so the
+ *               settings can be verified when output results differ.
+ *               It now reports the transcripts including the version, so that
+ *               the mappings and sequence can be verified.
+ *               0.8     2014-07-14
  *               Fixed problem with parsing the Wiggle files; we were skipping
  *               the chrom=NC_* header, adding its positions to the last used
  *               chromosome (usually chrY).
+ *               0.9     2014-08-01
+ *               Peaks should not be called when they do not show the highest
+ *               coverage of the codon.
  *
  *************/
 
@@ -376,6 +390,7 @@ print('Now looking for peaks ');
 $nGenesDiscarded = 0;
 $i = 0;
 $aResults = array(); // Here we will store the list of found peaks per gene.
+// FOR DEBUGGING PURPOSES, UNCOMMENT THE LINE BELOW AND CONSTRUCT THE ARRAY USING THE GENE(S) YOU WISH TO DEBUG.
 //$aPositionsPerGene = array('Csrp1' => $aPositionsPerGene['Csrp1']);
 foreach ($aPositionsPerGene as $sGene => $aGene) {
     if (!(++$i%25)) {
@@ -390,6 +405,8 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
         $aPositionsPerGene[$sGene]['unique_positions'] = array_merge($aPositionsPerGene[$sGene]['unique_positions'], array_values($aPositions));
 
         foreach ($aPositions as $sPosition => $nPosition) {
+            // If notices occur in the line below, the position is in $aMutalyzerResults, but not in $aWiggleFile.
+            // I guess this shouldn't happen!!!
             if ($aCoverages[$aGene['chr']][$nPosition] < $_SETT['peak_finding']['min_coverage']) {
                 // Coverage of this peak is not high enough for analysis.
                 continue;
@@ -421,9 +438,12 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
             }
 
             // Step 2a: It should show a triplet periodicity...
-            $nCoverageOfCodon = $aCoverages[$aGene['chr']][$nPosition];
-            // The two other nucleotides in the possible codon, so the two nucleotides downstream of the position
-            // we're analyzing, should not have an average coverage higher than 20% of the position's coverage.
+            $nMaxCoverageOfCodon = $nCoverageOfCodon = $aCoverages[$aGene['chr']][$nPosition];
+            // Firstly, this position should be the highest of the codon.
+            // The problem is, that when the codon_1st_pos_min_coverage_fraction factor is set below 0.5,
+            // that we could in theory call a peak that has the second highest coverage of the codon.
+            // Also, the two other nucleotides in the possible codon, so the two nucleotides downstream of the position
+            // we're analyzing, should not have an average coverage higher than 20% (default setting) of the position's coverage.
             for ($j = 1; $j <= 2; $j++) {
                 if ($b3UTR) {
                     $sPositionToCheck = '*' . ((int) substr($sPosition, 1) + $j);
@@ -435,10 +455,15 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
                     }
                 }
                 $nCoverage = (!isset($aPositions[$sPositionToCheck])? 0 : $aCoverages[$aGene['chr']][$aPositions[$sPositionToCheck]]);
+                $nMaxCoverageOfCodon = max($nMaxCoverageOfCodon, $nCoverage);
                 $nCoverageOfCodon += $nCoverage;
             }
+            if ($aCoverages[$aGene['chr']][$nPosition] != $nMaxCoverageOfCodon) {
+                // Coverage is NOT the highest coverage of this codon.
+                continue;
+            }
             if (($aCoverages[$aGene['chr']][$nPosition]/$nCoverageOfCodon) < $_SETT['peak_finding']['codon_1st_pos_min_coverage_fraction']) {
-                // Coverage is NOT higher than coverage of previous position.
+                // Coverage is NOT at least the minimum required percentage of this codon's coverage.
                 continue;
             }
 
@@ -448,7 +473,7 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
             // that codon must not show a conflicting triplet periodicity pattern (see 'codon_1st_pos_min_coverage_fraction' check above).
             for ($j = 1; $j <= $_SETT['peak_finding']['downstream_codons_to_check']; $j++) {
                 $nCoverageOfCodon = 0;
-                $nMaxCoverage = 0;
+                $nMaxCoverageOfCodon = 0;
                 $sPositionFirstOfCodon = '';
                 for ($k = 0; $k <= 2; $k++) {
                     if ($b3UTR) {
@@ -465,16 +490,20 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
                     }
                     $nCoverage = (!isset($aPositions[$sPositionToCheck])? 0 : $aCoverages[$aGene['chr']][$aPositions[$sPositionToCheck]]);
                     $nCoverageOfCodon += $nCoverage;
-                    $nMaxCoverage = max($nMaxCoverage, $nCoverage);
+                    $nMaxCoverageOfCodon = max($nMaxCoverageOfCodon, $nCoverage);
                 }
-                if ($nMaxCoverage > $aCoverages[$aGene['chr']][$nPosition]) {
+                if ($nMaxCoverageOfCodon > $aCoverages[$aGene['chr']][$nPosition]) {
                     // Max coverage of downstream codon IS higher.
                     continue 2;
-                } elseif ($nMaxCoverage > ($_SETT['peak_finding']['downstream_codons_max_coverage_max_fraction']*$aCoverages[$aGene['chr']][$nPosition])) {
+                } elseif ($nMaxCoverageOfCodon > ($_SETT['peak_finding']['downstream_codons_max_coverage_max_fraction']*$aCoverages[$aGene['chr']][$nPosition])) {
                     // Max coverage of downstream codon is higher than 10% of the current codon. This codon should now NOT have a conflicting periodicity.
                     $nCoverage = (!isset($aPositions[$sPositionFirstOfCodon])? 0 : $aCoverages[$aGene['chr']][$aPositions[$sPositionFirstOfCodon]]);
+                    if ($nCoverage != $nMaxCoverageOfCodon) {
+                        // Coverage of first position is NOT the highest coverage of this codon, codon does NOT show correct triplet periodicity.
+                        continue 2;
+                    }
                     if (($nCoverage/$nCoverageOfCodon) < $_SETT['peak_finding']['codon_1st_pos_min_coverage_fraction']) {
-                        // Codon does NOT show correct triplet periodicity.
+                        // Coverage of first position is NOT at least the minimum required percentage of this codon's coverage, codon does NOT show correct triplet periodicity.
                         continue 2;
                     }
                 }
