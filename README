@@ -178,10 +178,11 @@ The script does the following things:
   * Filter low coverage positions (< 3)
   * Mappings on non-coding transcripts are ignored
   * Mappings on transcripts on the other strand are ignored
+  * Transcripts not in the gene list are ignored and reported (so they could be
+    fixed == added to the gene info file)
   * Filter positions without transcript mapping
   * Filter positions with only intronic mapping
-  * Filter positions too far from transcript start or stop sites
-    (> 500bp)
+  * Filter positions too far from transcript start or stop sites (> 500bp)
   * The remaining possible mappings are processed.
     Please note that the "coding region" is defined as the region starting at
     -15 nucleotides from the ATG to the end of the open reading frame.

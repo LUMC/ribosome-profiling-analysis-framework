@@ -7,7 +7,7 @@
  * and presents the results.
  *
  * Created     : 2013-04-16
- * Modified    : 2014-07-14
+ * Modified    : 2014-08-14
  * Version     : 0.4
  *
  * Copyright   : 2013 Leiden University Medical Center; http://www.LUMC.nl/
@@ -63,6 +63,8 @@ function sortPositions ($key1, $key2) {
         return ($key1 < $key2? -1 : 1); // I know the values will never be equal.
     }
 }
+
+
 
 
 
@@ -132,6 +134,7 @@ foreach ($aMutalyzerResults as $sLine) {
     $nCoverage = $aCoverages[$sVariant];
     // Filter for low coverage.
     if ($aCoverages[$sVariant] < $_SETT['min_coverage']) {
+        // NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         $nFiltered ++;
         continue;
     }
@@ -172,7 +175,7 @@ foreach ($aMutalyzerResults as $sLine) {
 
             $sTranscript = $aRegs[1];
             $sPosition = $aRegs[2];
-            // Check strand and then check if position is in coding region. If so, store position!
+            // Check if we have info on the transcript, then check strand and store positions!
             if (!isset($aTranscripts[$sTranscript])) {
                 // This happens quite a lot...
                 if (!in_array($sTranscript, $aUnknownTranscripts)) {
