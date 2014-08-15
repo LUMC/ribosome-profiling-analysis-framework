@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2014-08-01
- * Version     : 0.91
+ * Modified    : 2014-08-15
+ * Version     : 0.92
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -39,12 +39,18 @@
  *               second in the Mutalyzer file, because the locations are linked
  *               to the wrong chromosome and therefore may not be present in the
  *               Wiggle file. We now report these cases.
+ *               0.92    2014-08-15
+ *               Total coverage for all positions to be analyzed is calculated
+ *               (equals the number of reads analyzed) before the peak calling,
+ *               and added to the statistics file, to be able to verify if a
+ *               lower number of peaks found is correlated with a lower number
+ *               of reads.
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.8',
+        'version' => '0.92',
         'min_coverage' => 3,      // Positions with less coverage than this are ignored. NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         'max_upstream' => 500,    // Maximum distance from known CDS look for ORFs.
         'max_downstream' => 500,  // Maximum distance from known CDS look for ORFs.
@@ -386,8 +392,7 @@ fputs($aFilesOut['stats']['handler'], "\n" .
     'Positions not mappable:' . "\t" . $nUnmappable . "\t" . 'Possible causes: no mapping by Mutalyzer, transcript is missing, or strand is wrong' . "\n" .
     'Positions intronic only:' . "\t" . $nIntronicPositions . "\t" . 'Possible causes: transcript is missing, or strand is wrong' . "\n" .
     'Positions too far from known genes:' . "\t" . $nIntergenic . "\t" . 'Possible causes: transcript is missing, newly discovered transcript, or strand is wrong' . "\n" .
-    'Positions left:' . "\t" . (array_sum($aTranscriptsPerPosition) - $nUnmappable - $nIntronicPositions - $nIntergenic) . "\n" .
-    'Genes mapped to:' . "\t" . $nGenesMapped . "\n");
+    'Positions left:' . "\t" . (array_sum($aTranscriptsPerPosition) - $nUnmappable - $nIntronicPositions - $nIntergenic) . "\n");
 print('Now looking for peaks ');
 
 
@@ -398,6 +403,7 @@ print('Now looking for peaks ');
 $nGenesDiscarded = 0;
 $i = 0;
 $aResults = array(); // Here we will store the list of found peaks per gene.
+$nTotalCoverageForAllPositions = 0; // Sums up the total coverage for all positions left in $aPositionsPerGene, for the stats.
 // FOR DEBUGGING PURPOSES, UNCOMMENT THE LINE BELOW AND CONSTRUCT THE ARRAY USING THE GENE(S) YOU WISH TO DEBUG.
 //$aPositionsPerGene = array('Csrp1' => $aPositionsPerGene['Csrp1']);
 foreach ($aPositionsPerGene as $sGene => $aGene) {
@@ -422,6 +428,8 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
                 // can do. Analysis on the chromosome mentioned second in the Mutalyzer file, will not work.
                 print("\n" .
                       'Position not found, ' . $aGene['chr'] . ':' . $nPosition . ' has no coverage; ' . $sTranscript . ' (' . $sGene . ') found on two chromosomes maybe?');
+                // Prevent further notices.
+                $aCoverages[$aGene['chr']][$nPosition] = 0;
                 continue;
             }
             if ($aCoverages[$aGene['chr']][$nPosition] < $_SETT['peak_finding']['min_coverage']) {
@@ -549,6 +557,12 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
     $aPositionsPerGene[$sGene]['unique_positions'] = array_unique($aPositionsPerGene[$sGene]['unique_positions']);
     $aPositionsPerGene[$sGene]['unique_positions_analyzed'] = array_unique($aPositionsPerGene[$sGene]['unique_positions_analyzed']);
 
+    // 2014-08-15; 0.92; We calculate the total coverage that is represented by the positions that were left before the peak calling.
+    // Since we need the list of unique positions, we need to calculate it here, after the peak calling.
+    foreach ($aPositionsPerGene[$sGene]['unique_positions'] as $nPosition) {
+        $nTotalCoverageForAllPositions += $aCoverages[$aGene['chr']][$nPosition];
+    }
+
     // Step 3: Per gene, from all its found possible ORF starts, we will take the one with the highest coverage as a reference, and discard any
     // other candidate ORF starting points that do not have at least a coverage (on that position) of 10% of the reference (highest candidate).
     if (!isset($aResults[$sGene])) {
@@ -575,9 +589,12 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
     }
 }
 $nGenesLeft = count($aResults);
-$nGenesDiscarded = count($aPositionsPerGene) - $nGenesLeft;
+$nGenesDiscarded = $nGenesMapped - $nGenesLeft;
 print(' done.' . "\n");
-fputs($aFilesOut['stats']['handler'], 'Genes discarded, no peaks found:' . "\t" . $nGenesDiscarded . "\n" .
+fputs($aFilesOut['stats']['handler'],
+    'Number of reads left:' . "\t" . $nTotalCoverageForAllPositions . "\n" .
+    'Genes mapped to:' . "\t" . $nGenesMapped . "\n" .
+    'Genes discarded, no peaks found:' . "\t" . $nGenesDiscarded . "\n" .
     'Genes left with found translation start sites:' . "\t" . $nGenesLeft . "\n");
 ////////////////////////////////////////////////////////////////////////////////
 /*

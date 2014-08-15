@@ -361,6 +361,9 @@ chr1            4857929     24     0    24     0     0     0    Tcea1
 the A and C samples merged. To do this, we are running the find_ORFs.php on the
 merged Wiggle files and the Mutalyzer files, using a lower threshold (20 over 3
 samples instead of 10 on 1 sample).
+
+!!! Be sure to edit these settings in the script before running the analysis !!!
+
 We merge the files like so:
 
 Merging the Wiggle files:
