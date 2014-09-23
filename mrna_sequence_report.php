@@ -8,17 +8,23 @@
  * sequence, and reports the protein sequence until the first stop.
  *
  * Created     : 2014-04-25
- * Modified    : 2014-05-16
- * Version     : 0.3
+ * Modified    : 2014-09-23
+ * Version     : 0.31
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.3     2014-05-16
+ *               Besides the full DNA sequence, the script now also shows the
+ *               DNA sequence up to and including the first stop codon.
+ *               0.31    2014-09-23
+ *               Renamed "extended_5UTR" category to "unannotated_5UTR".
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.3',
+        'version' => '0.31',
         'output_suffix' => '.mRNA_sequence_report.txt',
         'ORF_results_suffix' => '.ORF_analysis_results.peaks_classification.txt',
         'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
@@ -286,7 +292,7 @@ foreach ($aInputFile as $sLine) {
                     $sSequenceProtein = 'no_5UTR';
                 } else {
                     // No upstream sequence, or not enough upstream sequence available.
-                    $sSequenceProtein = 'extended_5UTR';
+                    $sSequenceProtein = 'unannotated_5UTR';
                 }
             }
         }

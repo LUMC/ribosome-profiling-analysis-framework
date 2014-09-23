@@ -8,17 +8,23 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-07-07
- * Version     : 0.5
+ * Modified    : 2014-09-23
+ * Version     : 0.51
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.5     2014-07-07
+ *               Now ignoring notices when encountering NM reference sequence
+ *               files that do not seem to have a sequence.
+ *               0.51    2014-09-23
+ *               Renamed "extended_5UTR" category to "unannotated_5UTR".
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.5',
+        'version' => '0.51',
         'output_suffix' =>
         array(
             'stats' => '.ORF_analysis_results.stats_peaks_per_location.txt',
@@ -485,7 +491,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                     $sMotif = 'no_5UTR';
                                 } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
                                     // No upstream sequence, or not enough upstream sequence available.
-                                    $sMotif = 'extended_5UTR';
+                                    $sMotif = 'unannotated_5UTR';
                                 } else {
                                     $sMotif = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), 3);
                                 }
@@ -508,7 +514,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                 $sUpstreamSequence = 'no_5UTR';
                             } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
                                 // No upstream sequence, or not enough upstream sequence available.
-                                $sUpstreamSequence = 'extended_5UTR';
+                                $sUpstreamSequence = 'unannotated_5UTR';
                             } else {
                                 $sUpstreamSequence = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), abs($aTIS['PosTrans+12']));
                             }
