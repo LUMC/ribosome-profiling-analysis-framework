@@ -1,0 +1,39 @@
+# Calculating the read length distribution over all samples, all replicates, both
+# transcriptome alignment (unsupported transcripts removed) and genome alignment.
+# Transcriptome alignment is split into NM and NR separately.
+
+# Files are assumed to be named:
+# merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_transcriptome_mappedforward.M25.sam
+# merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_unaligned.transcriptome_aligned.genome_M25.sam
+# For the alignment to the transcriptome and the genome, respectively.
+
+# Samples are named A1 to D3 in this example.
+
+# Produces three files:
+# readlength_distribution_${sample}${replicate}_genome.txt
+# readlength_distribution_${sample}${replicate}_transcriptome_NM.txt
+# readlength_distribution_${sample}${replicate}_transcriptome_NR.txt
+
+
+
+for sample in A B C D;
+  do
+  for replicate in 1 2 3;
+    do
+    echo -n ${sample}${replicate}_genome...;
+    grep -v "^@" merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_unaligned.transcriptome_aligned.genome_M25.sam | cut -f 10 | awk '{print length($1)}' | sort -g | uniq -c | awk '{print $2 "\t" $1}' > readlength_distribution_${sample}${replicate}_genome.txt;
+    echo "done.";
+    for transcript in NM NR;
+      do
+      echo -n ${sample}${replicate}_transcriptome_${transcript}...;
+      grep ${transcript}_ merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_transcriptome_mappedforward.M25.sam | cut -f 10 | awk '{print length($1)}' | sort -g | uniq -c | awk '{print $2 "\t" $1}' > readlength_distribution_${sample}${replicate}_transcriptome_${transcript}.txt;
+      echo "done.";
+    done;
+  done;
+done
+
+
+
+# One line:
+for sample in A B C D; do for replicate in 1 2 3; do echo -n ${sample}${replicate}_genome...; grep -v "^@" merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_unaligned.transcriptome_aligned.genome_M25.sam | cut -f 10 | awk '{print length($1)}' | sort -g | uniq -c | awk '{print $2 "\t" $1}' > readlength_distribution_${sample}${replicate}_genome.txt; echo "done."; for transcript in NM NR; do echo -n ${sample}${replicate}_transcriptome_${transcript}...; grep ${transcript}_ merged_${sample}${replicate}.fastq.trunc_no_unsupportedtranscripts_transcriptome_mappedforward.M25.sam | cut -f 10 | awk '{print length($1)}' | sort -g | uniq -c | awk '{print $2 "\t" $1}' > readlength_distribution_${sample}${replicate}_transcriptome_${transcript}.txt; echo "done."; done; done; done
+

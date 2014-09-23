@@ -54,6 +54,12 @@ Produces:
 
 3) After doing the alignment of the ribosome profiling reads on the transcrip-
 tome, unsupported transcripts removed, you end up with SAM files.
+These SAM files can be used to collect read length distribution data. The bash
+script usable for that, is described in help/read_length_distribution.txt. This
+README will continue describing the steps to follow for triplet periodicity and
+ORF analysis, regardless of whether the read length distribution has been
+analyzed or not.
+
 The SAM files are first packed, reducing them in size and grouping the reads
 together to generate a file that sums the coverage per transcript per position.
 For this, use the pack_sam_files.php file.
