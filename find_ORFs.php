@@ -7,8 +7,8 @@
  * that have not been annotated before.
  *
  * Created     : 2013-07-12
- * Modified    : 2014-08-15
- * Version     : 0.92
+ * Modified    : 2014-10-08
+ * Version     : 0.93
  *
  * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -45,6 +45,10 @@
  *               and added to the statistics file, to be able to verify if a
  *               lower number of peaks found is correlated with a lower number
  *               of reads.
+ *               0.93    2014-10-08
+ *               Fixed bug; Positions after the cutoff on multiple transcripts
+ *               were counted multiple times, which could cause the gene header
+ *               in the normal results file to not be printed.
  *
  *************/
 
@@ -405,7 +409,7 @@ $i = 0;
 $aResults = array(); // Here we will store the list of found peaks per gene.
 $nTotalCoverageForAllPositions = 0; // Sums up the total coverage for all positions left in $aPositionsPerGene, for the stats.
 // FOR DEBUGGING PURPOSES, UNCOMMENT THE LINE BELOW AND CONSTRUCT THE ARRAY USING THE GENE(S) YOU WISH TO DEBUG.
-//$aPositionsPerGene = array('Csrp1' => $aPositionsPerGene['Csrp1']);
+//$aPositionsPerGene = array('Son' => $aPositionsPerGene['Son']);
 foreach ($aPositionsPerGene as $sGene => $aGene) {
     if (!(++$i%25)) {
         print('.');
@@ -546,8 +550,11 @@ foreach ($aPositionsPerGene as $sGene => $aGene) {
             // Mark as potential false positive when too far downstream, but not in the 3'UTR,
             // because of the background in the coding region >= 5KB from the pORF start site.
             if (!$b5UTR && !$b3UTR && $sPosition >= $_SETT['peak_finding']['candidate_min_distance_reported_separately']) {
-                $aResults[$sGene]['report_separately'] ++;
-                $aResults[$sGene]['positions'][$nPosition]['report_separately'] = true;
+                // 2014-10-08; 0.93; Only mark if mark is not already set for a different transcript; otherwise there's a risk of the gene header not being printed.
+                if (empty($aResults[$sGene]['positions'][$nPosition]['report_separately'])) {
+                    $aResults[$sGene]['report_separately'] ++;
+                    $aResults[$sGene]['positions'][$nPosition]['report_separately'] = true;
+                }
             }
 
             // Continue 5 codons downstream.
