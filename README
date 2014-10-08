@@ -469,17 +469,23 @@ Produces:
   of 12 nucleotides to the 5' read genomic positions, the gene, the summed
   coverage of the replicates in that position, the transcript RefSeq ID (only
   one reported), the position on that transcript including the position with the
-  offset of 12 applied and the sequence of the codon at the reported TIS.
+  offset of 12 applied, optional status messages, and the sequence of the codon
+  at the reported TIS.
   For TISs reported in the category "multiple", the information in the last four
   columns is missing.
   In case the RefSeq file has no CDS annotated, instead of the motif sequence
   the error "could_not_parse_CDS" is given.
-  In case the RefSeq file has no 5'UTR annotated (CDS starts at position 1),
-  instead of the motif sequence the error "no_5UTR" is given.
-  In case the RefSeq file has not enough 5'UTR annotated to fetch the full motif
+  In case the RefSeq file has no 5'UTR annotated (CDS starts at position 1), or
+  in case the RefSeq file has not enough 5'UTR annotated to fetch the full motif
   sequence (CDS starts at a position smaller than the distance of the TIS to the
-  annotated TIS), instead of the motif sequence the error "unannotated_5UTR" is
-  given.
+  annotated TIS), the status is set to "no_5UTR" or "unannotated_5UTR",
+  respectively, and a "slice" of the genomic sequence is downloaded. This slice
+  starts from the corrected genomic position, and 75000 bases downstream. From
+  this file, this script attempts to find the correct mRNA and CDS tags, takes
+  the sequence until the annotated CDS, removing any annotated introns before
+  the CDS. When the mRNA tag can not be found, the status also mentions the code
+  "no_mRNA_definition". The motif is still reported, but the output file
+  described below will not contain the sequence until the annotated TIS.
 - *.ORF_analysis_results.peaks_classification_5UTR.txt (one per sample)
   Reports all TISs found in the 5'UTR, sorted on strand and genomic position.
   The fields reported are very similar to the fields mentioned in the previous
@@ -493,7 +499,7 @@ Produces:
   the sequence is in a different frame compared with the annotated TIS; in this
   case the DNA sequence given will end with an incomplete codon and the trans-
   lated sequence will end with a ?.
-  Error messages that might be reported instead of sequence, are explained above
+  Any messages that might be reported in the status column, are explained above
   in the description of the previous file.
 
 The script is using the given file names to filter out the statistics files
