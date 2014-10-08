@@ -8,8 +8,8 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-09-23
- * Version     : 0.51
+ * Modified    : 2014-10-08
+ * Version     : 0.6
  *
  * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -19,12 +19,24 @@
  *               files that do not seem to have a sequence.
  *               0.51    2014-09-23
  *               Renamed "extended_5UTR" category to "unannotated_5UTR".
+ *               0.6     2014-10-08
+ *               Prevented notices when not passing the ORF results both before
+ *               and after the cutoff as input files.
+ *               Interrupted CDSs (e.g. "join(105..308,310..789)") are now also
+ *               supported.
+ *               Added Status column in the output files, where error messages
+ *               are displayed, that were before in the sequence column.
+ *               For the unannotated_5UTR category and the no_UTR category, we
+ *               download the sequence by requesting a "slice" of the genomic
+ *               sequence with enough downstream sequence, we parse the file and
+ *               find the CDS, truncating the sequence until the annotated CDS,
+ *               and finally we remove the annotated introns.
  *
  *************/
 
 $_SETT =
     array(
-        'version' => '0.51',
+        'version' => '0.6',
         'output_suffix' =>
         array(
             'stats' => '.ORF_analysis_results.stats_peaks_per_location.txt',
@@ -41,7 +53,33 @@ $_SETT =
         ),
         'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
         'terminal_width' => 150,
+        'NC_identifiers' =>
+            array(
+                '1' => 'NC_000067.6',
+                '2' => 'NC_000068.7',
+                '3' => 'NC_000069.6',
+                '4' => 'NC_000070.6',
+                '5' => 'NC_000071.6',
+                '6' => 'NC_000072.6',
+                '7' => 'NC_000073.6',
+                '8' => 'NC_000074.6',
+                '9' => 'NC_000075.6',
+                '10' => 'NC_000076.6',
+                '11' => 'NC_000077.6',
+                '12' => 'NC_000078.6',
+                '13' => 'NC_000079.6',
+                '14' => 'NC_000080.6',
+                '15' => 'NC_000081.6',
+                '16' => 'NC_000082.6',
+                '17' => 'NC_000083.6',
+                '18' => 'NC_000084.6',
+                '19' => 'NC_000085.6',
+                'X' => 'NC_000086.7',
+                'Y' => 'NC_000087.7',
+            ),
+        'NC_slice_length' => 75000, // How many bases in size should the NC slices be that we download? (50K is not always enough)
     );
+$_SETT['NC_slice_length'] --; // Since the bases are counted inclusive.
 
 function RPF_translateDNA ($sSequence)
 {
@@ -357,11 +395,15 @@ foreach ($aSamples as $sSampleID => $aSample) {
     foreach (array(false, true) as $bCutOff) {
         fputs($aSample['file_out']['stats']['handle'], "\n\n" .
             '# Results for ORF start sites with ' . ($bCutOff? 'no' : 'a') . ' cutoff applied. Using files:' . "\n" .
-            '# ' . $aSample['F'][$bCutOff] . "\n" .
-            '# ' . $aSample['R'][$bCutOff] . "\n" .
+            (!isset($aSample['F'][$bCutOff])? '' :
+                '# ' . $aSample['F'][$bCutOff] . "\n") .
+            (!isset($aSample['R'][$bCutOff])? '' :
+                '# ' . $aSample['R'][$bCutOff] . "\n") .
             (!$bCutOff? '' :
-                '# ' . $aSample['F'][!$bCutOff] . "\n" .
-                '# ' . $aSample['R'][!$bCutOff] . "\n") .
+                (!isset($aSample['F'][!$bCutOff])? '' :
+                    '# ' . $aSample['F'][!$bCutOff] . "\n") .
+                (!isset($aSample['R'][!$bCutOff])? '' :
+                    '# ' . $aSample['R'][!$bCutOff] . "\n")) .
             '# Category' . "\t" . 'Number of TISs found' . "\t" . 'Total coverage' . "\n");
 
         foreach ($_SETT['categories'] as $sCategory) {
@@ -402,6 +444,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
             'RefSeqID',
             'PeakPosTrans',
             'PosTrans+12',
+            'Status',
         );
         if ($sType == 'peak_classification') {
             $aHeaders[] = 'Motif';
@@ -465,9 +508,9 @@ foreach ($aSamples as $sSampleID => $aSample) {
 
                             // Parse NM, isolate sequence and isolate CDS position.
                             $aNMCache[$aTIS['RefSeqID']] = array();
-                            if (!preg_match('/^\s+CDS\s+(\d+)\.\.(\d+)$/m', $sNM, $aRegs)) {
-//                                die("\n" .
-//                                    'Failed to find CDS for ' . $aTIS['RefSeqID'] . "\n");
+                            if (!preg_match('/^\s+CDS\s+(?:join\()?(\d+)\.\.(\d+)((,\d+\.\.\d+)*\))?$/m', $sNM, $aRegs)) {
+                                die("\n" .
+                                    'Failed to find CDS for ' . $aTIS['RefSeqID'] . "\n");
                                 $nCDSstart = $nCDSend = 0;
                             } else {
                                 list(,$nCDSstart, $nCDSend) = $aRegs;
@@ -486,14 +529,15 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                 // Upstream.
                                 if (!$nCDSstart) {
                                     // No annotated CDS found (could not parse)
-                                    $sMotif = 'could_not_parse_CDS';
+                                    $aTIS['Status'] = 'could_not_parse_CDS';
                                 } elseif ($nCDSstart == 1) {
-                                    $sMotif = 'no_5UTR';
+                                    // No upstream sequence.
+                                    $aTIS['Status'] = 'no_5UTR';
                                 } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
-                                    // No upstream sequence, or not enough upstream sequence available.
-                                    $sMotif = 'unannotated_5UTR';
+                                    // Not enough upstream sequence available.
+                                    $aTIS['Status'] = 'unannotated_5UTR';
                                 } else {
-                                    $sMotif = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), 3);
+                                    $aTIS['Motif'] = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), 3);
                                 }
                             } else {
                                 // Compensate 3'UTR reads.
@@ -502,27 +546,172 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                 } else {
                                     $nPosMotif = $aTIS['PosTrans+12'];
                                 }
-                                $sMotif = substr($sSequence, ($nCDSstart+$nPosMotif-2), 3);
+                                $aTIS['Motif'] = substr($sSequence, ($nCDSstart+$nPosMotif-2), 3);
                             }
-                            $aTIS['Motif'] = $sMotif;
                         } else {
                             // For 5'UTR (all we see here), get the whole upstream sequence.
                             if (!$nCDSstart) {
                                 // No annotated CDS found (could not parse)
-                                $sUpstreamSequence = 'could_not_parse_CDS';
+                                $aTIS['Status'] = 'could_not_parse_CDS';
                             } elseif ($nCDSstart == 1) {
-                                $sUpstreamSequence = 'no_5UTR';
+                                // No upstream sequence.
+                                $aTIS['Status'] = 'no_5UTR';
                             } elseif (abs($aTIS['PosTrans+12']) > ($nCDSstart-1)) {
-                                // No upstream sequence, or not enough upstream sequence available.
-                                $sUpstreamSequence = 'unannotated_5UTR';
+                                // Not enough upstream sequence available.
+                                $aTIS['Status'] = 'unannotated_5UTR';
                             } else {
-                                $sUpstreamSequence = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), abs($aTIS['PosTrans+12']));
+                                $aTIS['DNASeqToAUG'] = substr($sSequence, ($nCDSstart-1+$aTIS['PosTrans+12']), abs($aTIS['PosTrans+12']));
                             }
-                            $aTIS['DNASeqToAUG'] = $sUpstreamSequence;
 
                             // Now, get it translated.
-                            $sProteinSequence = RPF_translateDNA($sUpstreamSequence);
+                            $sProteinSequence = RPF_translateDNA($aTIS['DNASeqToAUG']);
                             $aTIS['ProtSeqToAUG'] = $sProteinSequence;
+                        }
+
+                        // 2014-10-03; 0.6; Solving no_5UTR and unannotated_5UTR problems by downloading sequence slices from the NCBI.
+                        if (in_array($aTIS['Status'], array('no_5UTR', 'unannotated_5UTR'))) {
+                            // We'll have to get the sequence in a different way, directly from the genomic sequence.
+                            // FIXME; Perhaps we should have stored the Chr when we had it?
+                            $sChr = '';
+                            $nStartPos = 0;
+                            if (preg_match('/^chr(\d+|[XYM]):(\d+)$/', $aTIS['PosGenomic+12'], $aRegs)) {
+                                list(,$sChr, $nStartPos) = $aRegs;
+                            } else {
+                                die("\n" .
+                                    'Failed to determine chromosome for ' . $aTIS['PosGenomic+12'] . "\n");
+                            }
+
+                            if (!isset($_SETT['NC_identifiers'][$sChr])) {
+                                die("\n" .
+                                    'Failed to determine chromosomal reference sequence for ' . $aTIS['PeakPosGenomic'] . "\n");
+                            }
+                            $sRefSeqNC = $_SETT['NC_identifiers'][$sChr];
+                            $sNCFileID = $sRefSeqNC . ':' . $aTIS['Strand'] . ':' . $nStartPos;
+
+                            if (!isset($aNMCache[$sNCFileID . ':' . $sRefSeqID])) {
+                                // File hasn't been parsed yet.
+                                $sNCFile = $_SETT['NM_cache_dir'] . $sNCFileID . '.gb';
+                                if (!is_file($sNCFile)) {
+                                    // In fact, it hasn't been downloaded yet!
+                                    $fNC = fopen($sNCFile, 'w');
+                                    $sNC = file_get_contents('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=' . $sRefSeqNC . '&strand=' . ($aTIS['Strand'] != 'F'? 2 : 1) . '&seq_start=' . $nStartPos . '&seq_stop=' . ($nStartPos + (($aTIS['Strand'] != 'F'? -1 : 1) * $_SETT['NC_slice_length'])) . '&rettype=gb');
+                                    if (!$sNC) {
+                                        // Failed to download NC.
+                                        die("\n" .
+                                            'Failed to download NC sequence for ' . $sNCFileID . "\n");
+                                    }
+                                    fputs($fNC, $sNC);
+                                    fclose($fNC);
+                                } else {
+                                    $sNC = file_get_contents($sNCFile);
+                                }
+
+                                // The NC files are messy. Multiple transcripts, no nice way of finding out which CDS we need, etc.
+                                // It's easier to fetch the CDS' GI ID from the NM, check for annotated introns there, and then
+                                // fetch the sequence from the NC.
+                                $aNMCache[$sNCFileID . ':' . $sRefSeqID] = array();
+
+                                // Parse the NC and find the exon boundaries. Can't search for the NM directly, can't get the regexp to not be greedy like that.
+                                $aExons = array();
+                                $sExons = '';
+                                // Also match <1 and ># positions, since we allow to match newer versions of the transcript, and those could have been enlarged.
+                                if (preg_match_all('/\s+mRNA\s+(?:join\()?(<?\d+\.\.>?\d+(?:(?:,\s*\d+\.\.>?\d+)*\))?)\n.+\s+\/transcript_id="([NX]M_[0-9]+\.)[0-9]+"\n/sU', $sNC, $aRegs)) {
+                                    // Loop mRNAs to find the correct one (but ignore versions).
+                                    // FIXME: Currently ignoring a > in front of the first exon's end; no clue what to do with it or where it comes from.
+                                    foreach (array_keys($aRegs[0]) as $i) {
+                                        if (strpos($sRefSeqID, $aRegs[2][$i]) === 0) {
+                                            $sExons = preg_replace('/[^0-9.,]+/', '', $aRegs[1][$i]);
+                                            break;
+                                        }
+                                    }
+                                }
+                                if ($sExons) {
+                                    $aExons = explode(',', $sExons);
+                                    $aExons = array_map('explode', array_fill(0, count($aExons), '..'), $aExons);
+                                }
+                                if (!$aExons) {
+                                    // This really should not happen... unless the transcript doesn't really map here (such as NM_027892.2).
+                                    // Check if the NC has been downloaded correctly...!
+                                    if (preg_match_all('/\s+mRNA\s+\?\n.+\s+\/transcript_id="([NX]M_[0-9]+\.)[0-9]+"\n/sU', $sNC, $aRegs)) {
+                                        print("\n" .
+                                            'mRNA ' . $aTIS['RefSeqID'] . ' does not have a location in ' . $sNCFileID . '; please remove and re-download the NC slice.' . "\n");
+                                    } else {
+                                        print("\n" .
+                                            'Failed to get mRNA definition for ' . $aTIS['RefSeqID'] . ' in ' . $sNCFileID . '; transcript mapping two different locations, maybe?' . "\n");
+                                    }
+                                    $aTIS['Status'] .= ';no_mRNA_definition';
+                                    $nCDSstartNC = $nCDSendNC = 1;
+                                    $sSequence = '';
+
+                                } else {
+                                    // Re-parse the NM, find the CDS.
+                                    // No need to check if it exists, we just already parsed it.
+                                    $sNM = file_get_contents($_SETT['NM_cache_dir'] . $aTIS['RefSeqID'] . '.gb');
+                                    $nCDSID = '';
+                                    if (!preg_match('/^\s+\/db_xref="GI:(\d+)"$/m', $sNM, $aRegs)) {
+                                        // Weird... never seen an NM without an GI ID.
+                                        die("\n" .
+                                            'Failed to get CDS GI ID for ' . $aTIS['RefSeqID'] . "\n");
+                                    }
+                                    $nCDSID = $aRegs[1];
+
+                                    // Check CDS start in NC.
+                                    $nCDSstartNC = $nCDSendNC = 0;
+                                    if (preg_match_all('/\s+CDS\s+(?:join\()?(\d+)\.\.(\d+)(?:(?:,\s*\d+\.\.>?\d+)*\))?\n.+\s+\/db_xref="GI:(\d+)"\n/sU', $sNC, $aCDSs)) {
+                                        // Loop CDSs to find the correct one.
+                                        foreach (array_keys($aCDSs[0]) as $i) {
+                                            if ($aCDSs[3][$i] == $nCDSID) {
+                                                $nCDSstartNC = $aCDSs[1][$i];
+                                                $nCDSendNC = $aCDSs[2][$i];
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!$nCDSstartNC) {
+                                        //var_dump($aTIS, $aCDSs, $nCDSID);
+                                        die("\n" .
+                                            'Failed to find CDS for ' . $sNCFileID . ':' . $sRefSeqID . "\n");
+                                    }
+                                }
+
+                                // Now get sequence.
+                                @list(,$sSequenceRaw) = preg_split('/^ORIGIN\s+$/m', $sNC, 2); // Ignore notices unknown index 1.
+                                $sSequence = rtrim(preg_replace('/[^a-z]+/', '', $sSequenceRaw), "\n/");
+                                // End sequence with the annotated TIS codon, so we can check if we got the distance right.
+                                $sSequence = substr($sSequence, 0, ($nCDSstartNC+2));
+                                // Remove introns when necessary.
+                                if (count($aExons) > 1) {
+                                    $aExons[0][0] = 1; // The unannotated part is regarded 100% exon.
+                                    $sSequenceSpliced = '';
+                                    foreach ($aExons as $aExon) {
+                                        list($nStart, $nEnd) = $aExon;
+                                        // If we already passed the pTIS, no need to splice (we lost the sequence anyway).
+                                        if ($nStart > $nCDSstartNC) {
+                                            break;
+                                        }
+                                        $sSequenceSpliced .= substr($sSequence, ($nStart - 1), ($nEnd - $nStart) + 1);
+                                    }
+                                    $lCut = strlen($sSequence) - strlen($sSequenceSpliced);
+                                    $sSequence = $sSequenceSpliced;
+                                    $nCDSstartNC -= $lCut;
+                                    $nCDSendNC -= $lCut;
+                                }
+                                $aNMCache[$sNCFileID . ':' . $sRefSeqID] = array($nCDSstartNC, $nCDSendNC, $sSequence);
+                            }
+
+                            list($nCDSstart, $nCDSend, $sSequence) = $aNMCache[$sNCFileID . ':' . $sRefSeqID];
+                            // Get Motif or upstream sequence.
+                            if ($sType == 'peak_classification') {
+                                // Fetch motif.
+                                $aTIS['Motif'] = substr($sSequence, 0, 3);
+                            } else {
+                                // For 5'UTR (all we see here), get the whole upstream sequence.
+                                $aTIS['DNASeqToAUG'] = substr($sSequence, 0, -3);
+
+                                // Now, get it translated.
+                                $sProteinSequence = RPF_translateDNA($aTIS['DNASeqToAUG']);
+                                $aTIS['ProtSeqToAUG'] = $sProteinSequence;
+                            }
                         }
                     }
 
