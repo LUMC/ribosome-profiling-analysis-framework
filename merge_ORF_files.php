@@ -10,13 +10,20 @@
  * Modified    : 2014-07-14
  * Version     : 0.5
  *
- * Copyright   : 2013-2014 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2013-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
  * Changelog   : 0.5
  *               Fixed problem with parsing the Wiggle files; we were skipping
  *               the chrom=NC_* header, adding its positions to the last used
  *               chromosome (usually chrY).
+ *
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License. To view a
+ * copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/
+ * or send a letter to:
+ * Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
  *
  *************/
 

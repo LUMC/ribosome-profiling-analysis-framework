@@ -11,7 +11,7 @@
  * Modified    : 2014-10-08
  * Version     : 0.6
  *
- * Copyright   : 2014 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2014-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
  * Changelog   : 0.5     2014-07-07
@@ -31,6 +31,13 @@
  *               sequence with enough downstream sequence, we parse the file and
  *               find the CDS, truncating the sequence until the annotated CDS,
  *               and finally we remove the annotated introns.
+ *
+ *
+ * This work is licensed under the Creative Commons
+ * Attribution-NonCommercial-ShareAlike 4.0 International License. To view a
+ * copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/
+ * or send a letter to:
+ * Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
  *
  *************/
 
