@@ -115,7 +115,7 @@ returns:
       2 XR_142439.1
       2 XR_168852.1
 
-And they show crappy alignment, as you can see by running:
+And they show bad alignment, as you can see by running:
 
 $ grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
     RefseqFASTA_mapped-to-genome_maxpath_2.sam | sort | less -SM
@@ -123,7 +123,7 @@ $ grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104
 Lots of clipping on either side; the multiple alignments were often in different
 chromosomes, also.
 
-Searching the SAM files of the ribosome profiling experiment for these NMs show
+Searching the SAM files of a full transcriptome alignment for these NMs show
 very little reads mapped to them:
 
 $ for file in *.sam; do echo $file; grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
@@ -176,10 +176,6 @@ How many reads?
 
 $ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts_no_chance_for_genomic_alignment.txt merged_A1.fastq.trunc.transcriptome.sam_mappedforward.sam_mappedforward_M25.sam_6col | wc -l
 1362
-
-HOWEVER, currently the distance_to_ATG file does NOT include genes where the
-exon/intron boundary is closely 5' of the ATG!
-This script first needs to be improved.
 
 
 
