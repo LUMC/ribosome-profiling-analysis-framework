@@ -37,7 +37,7 @@ $_SETT =
     );
 
 echo 'GetReadLengthPerTranscript v.' . $_SETT['version'] . "\n";
-//     'PLEASE DO NOT USE THIS SCRIPT ON THE I DRIVE; IT\'S INCREDIBLY SLOW THERE.' . "\n\n";
+//     'PLEASE DO NOT USE THIS SCRIPT ON A NETWORK DRIVE; IT CAN BE INCREDIBLY SLOW THERE.' . "\n\n";
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
