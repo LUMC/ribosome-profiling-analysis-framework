@@ -49,6 +49,9 @@
  *               Fixed bug; Positions after the cutoff on multiple transcripts
  *               were counted multiple times, which could cause the gene header
  *               in the normal results file to not be printed.
+ *               ----    2015-01-27
+ *               With new default settings, aimed at using merged biological
+ *               replicates.
  *
  *
  * This work is licensed under the Creative Commons
@@ -61,13 +64,13 @@
 
 $_SETT =
     array(
-        'version' => '0.92',
+        'version' => '0.93',
         'min_coverage' => 3,      // Positions with less coverage than this are ignored. NOTE: The Mutalyzer batch file has already been filtered for coverage lower than 3.
         'max_upstream' => 500,    // Maximum distance from known CDS look for ORFs.
         'max_downstream' => 500,  // Maximum distance from known CDS look for ORFs.
         'peak_finding' =>
         array(
-            'min_coverage' => 10, // Candidate peaks need to have at least a coverage of 10.
+            'min_coverage' => 20, // Candidate peaks need to have at least a coverage of 20 (for 3 merged biological replicates, 10 for single samples).
             'codon_1st_pos_min_coverage_fraction' => 0.6, // The first position of a codon must have at least 60% of all coverage in that codon.
             'upstream_codons_to_check'   => 5, // How many codons upstream do we check to verify a candidate peak? (coverage should be higher than the max coverage in those codons)
             'downstream_codons_to_check' => 5, // How many codons downstream do we check to verify a candidate peak? (coverage should be higher than the max coverage in those codons)

@@ -1,7 +1,13 @@
+# First, install the wiggelen package.
+# For Ubuntu or Debian Linux users:
+
 sudo apt-get install python-pip
 sudo pip install wiggelen
 
 # For Windows users:
+# Do note, that the code below only runs on Linux. When running this on Windows,
+# you'll need to run wiggelen yourself, grouping the correct Wiggle files
+# together. Make sure the resulting Wiggle files are tab-delimited.
 # 1- Install python (http://python.org/download/)
 # 2- Install pip-Win (https://sites.google.com/site/pydatalog/python/pip-for-windows) and start pip-Win.
 # 3- Run command 'pip install wiggelen' in the pip-Win screen.
