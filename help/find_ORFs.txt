@@ -1,6 +1,6 @@
 # How to run the script in a loop over several samples:
 
-for sample in A1 A2 A3 C1 C2 C3;
+for sample in A C;
 do
   for strand in F R;
   do
@@ -10,5 +10,5 @@ done;
 echo "";
 
 On one line:
-for sample in A1 A2 A3 C1 C2 C3; do for strand in F R; do ./find_ORFs.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" mm10_gene_list.txt $strand; done; done; echo "";
+for sample in A C; do for strand in F R; do ./find_ORFs.php "merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt" "merged_${sample}.merged_wiggle.${strand}.filtered.wig5" mm10_gene_list.txt $strand; done; done; echo "";
 
