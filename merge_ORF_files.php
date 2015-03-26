@@ -7,16 +7,20 @@
  * and the coverage per sample is shown.
  *
  * Created     : 2013-10-08
- * Modified    : 2014-07-14
- * Version     : 0.5
+ * Modified    : 2015-02-27
+ * Version     : 0.51
  *
  * Copyright   : 2013-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
- * Changelog   : 0.5
+ * Changelog   : 0.5     2014-07-14
  *               Fixed problem with parsing the Wiggle files; we were skipping
  *               the chrom=NC_* header, adding its positions to the last used
  *               chromosome (usually chrY).
+ *               0.51    2015-02-27
+ *               Fixed notices when run on a single sample, and individual
+ *               replicate wiggle files are no longer expected to start with
+ *               "merged_".
  *
  *
  * This work is licensed under the Creative Commons
@@ -29,7 +33,7 @@
 
 $_SETT =
     array(
-        'version' => '0.5',
+        'version' => '0.51',
         'output_suffix' => '.merged_ORF_analyses.txt',
     );
 
@@ -52,6 +56,14 @@ foreach ($aFiles as $sFile) {
 // How should we call the new file?
 if ($nSamples == 1) {
     $sFileOut = $aFiles[0] . $_SETT['output_suffix'];
+    // But we still need $lPrefix and $lSuffix, if we want a sample ID in the output file.
+    if (preg_match('/^(merged_)(.+)(\.merged_wiggle\..\.filtered\.wig5\.ORF_analysis_results\.txt)$/', $aFiles[0], $aRegs)) {
+        $lPrefix = strlen($aRegs[1]);
+        $lSuffix = strlen($aRegs[3]);
+    } else {
+        $lPrefix = strlen($aFiles[0]);
+        $lSuffix = 0;
+    }
 } else {
     // Find prefix and suffix for file(s), to have an output file that matches the name.
     $lPrefix = $lSuffix = min(array_map('strlen', $aFiles)); // Length of the shortest file name in argument list.
@@ -160,6 +172,8 @@ if ($bMergedReplicates) {
         for ($i = 1; $i < 10; $i ++) {
             $sReplicateID = $aSamples[$key] . $i;
             $sReplicateFile = substr($sFile, 0, $lPrefix) . $sReplicateID . substr($sFile, -$lSuffix);
+            // Remove merged_ prefix.
+            $sReplicateFile = preg_replace('/^merged_/', '', $sReplicateFile);
             // Remove .ORF_analysis_results.txt suffix.
             $sReplicateFile = preg_replace('/\.ORF_analysis_results(_after_cutoff)?\.txt$/', '', $sReplicateFile);
             if (preg_match('/wig5?$/', $sReplicateFile) && is_readable($sReplicateFile)) {
