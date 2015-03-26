@@ -9,7 +9,7 @@
  *
  * Created     : 2014-01-08
  * Modified    : 2014-10-08
- * Version     : 0.6
+ * Version     : 0.61
  *
  * Copyright   : 2014-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -31,6 +31,9 @@
  *               sequence with enough downstream sequence, we parse the file and
  *               find the CDS, truncating the sequence until the annotated CDS,
  *               and finally we remove the annotated introns.
+ *               0.61    2015-02-27
+ *               Script halted when finding merged ORF analyses, now it silently
+ *               ignores them.
  *
  *
  * This work is licensed under the Creative Commons
@@ -43,7 +46,7 @@
 
 $_SETT =
     array(
-        'version' => '0.6',
+        'version' => '0.61',
         'output_suffix' =>
         array(
             'stats' => '.ORF_analysis_results.stats_peaks_per_location.txt',
@@ -205,8 +208,8 @@ if ($nSamples == 1) {
                 continue 2;
             }
         }
-        // Also ignore stats.
-        if (preg_match('/\.ORF_analysis_results_stats\.txt$/', $sFile)) {
+        // Also ignore stats and merged ORF analyses.
+        if (preg_match('/\.ORF_analysis_results(_stats|\.txt\.merged_ORF_analyses)\.txt$/', $sFile)) {
             unset($aFiles[$nFile]);
             continue;
         }
@@ -676,6 +679,9 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                     }
                                     if (!$nCDSstartNC) {
                                         //var_dump($aTIS, $aCDSs, $nCDSID);
+                                        // Note that this can happen, when the NC slice downloaded contains a new transcript version. Quickest way to fix, is to find the CDS
+                                        // (using the NP, or using the GI from the CDS of the correct NM version) and replace the GI.
+                                        // Also, make sure there is no > or < in the starting locations (or should we handle that?).
                                         die("\n" .
                                             'Failed to find CDS for ' . $sNCFileID . ':' . $sRefSeqID . "\n");
                                     }
