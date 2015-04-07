@@ -61,8 +61,8 @@ $_SETT =
             '3UTR',
             'multiple',
         ),
-        'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
-        'terminal_width' => 150,
+        'NM_cache_dir' => '/data/NM_cache/',
+        'terminal_width' => 100,
         'NC_identifiers' =>
             array(
                 '1' => 'NC_000067.6',

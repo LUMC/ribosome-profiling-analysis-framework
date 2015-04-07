@@ -25,7 +25,7 @@ $_SETT =
     array(
         'version' => '0.1',
         'suffix' => '.packed',
-        'terminal_width' => 150,
+        'terminal_width' => 100,
     );
 
 echo 'PackSamFiles v.' . $_SETT['version'] . "\n" .

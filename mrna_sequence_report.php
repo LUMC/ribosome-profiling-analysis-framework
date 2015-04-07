@@ -34,8 +34,8 @@ $_SETT =
         'version' => '0.31',
         'output_suffix' => '.mRNA_sequence_report.txt',
         'ORF_results_suffix' => '.ORF_analysis_results.peaks_classification.txt',
-        'NM_cache_dir' => '/home/ifokkema/tmp/ele/new_run/NM_cache/',
-        'terminal_width' => 120,
+        'NM_cache_dir' => '/data/NM_cache/',
+        'terminal_width' => 100,
     );
 
 function RPF_translateDNA ($sSequence)

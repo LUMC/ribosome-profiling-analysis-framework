@@ -33,7 +33,7 @@ $_SETT =
     array(
         'version' => '0.1',
         'output_file_format' => '{{GENE}}_{{TRANSCRIPT}}_read_length_distribution.txt',
-        'terminal_width' => 120,
+        'terminal_width' => 100,
     );
 
 echo 'GetReadLengthPerTranscript v.' . $_SETT['version'] . "\n";

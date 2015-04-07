@@ -28,7 +28,7 @@ $_SETT =
         'version' => '0.1',
         'output' => 'mm10_transcript_positions.txt',
         'unsupported_transcripts_output' => 'transcriptome_alignment_unsupported_transcripts.txt',
-        'terminal_width' => 150,
+        'terminal_width' => 100,
     );
 
 echo 'CreateTranscriptPositions v.' . $_SETT['version'] . "\n" .
