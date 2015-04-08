@@ -615,14 +615,15 @@ fputs($aFilesOut['stats']['handler'],
     'Genes left with found translation start sites:' . "\t" . $nGenesLeft . "\n");
 ////////////////////////////////////////////////////////////////////////////////
 /*
-+ For all genes remaining, the positions of the candidate ORF start sites are
-  reported relative to all known transcripts of the gene in question. The
-  original number of positions with high coverage (>10) is mentioned along with
-  the number of remaining candidate ORF start sites.
-+ Additionally, a separate file reports all candidate peaks found at a position
-  higher than 5Kb from a known ORF start site, so they can easily be checked
-  more thoroughly if they are false positives.
-
++ Problem: Mutalyzer describes positions after the stop codon with an asterisk
+  followed by the distance to the stop codon, e.g. *3. Since this script does
+  not know the transcript lengths at the moment, it is unaware of the distance
+  between a position in the coding region (e.g. 4623) and a position after the
+  stop codon. Therefore, the checks of the coverage of the surrounding positions
+  of a candidate translation start site will be incorrect or not be possible
+  when this site is located around the annotated stop codon.
+  This may cause false positives around the translation stop site, but not false
+  negatives.
 */
 
 
