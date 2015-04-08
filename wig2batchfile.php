@@ -6,19 +6,23 @@
  * the position converter van be used.
  *
  * Created     : 2013-04-10
- * Modified    : 2014-07-10
- * Version     : 0.3
+ * Modified    : 2015-04-07
+ * Version     : 0.31
  *
  * Copyright   : 2013-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
  *
- * Changelog   : 0.2
+ * Changelog   : 0.2     2013-08-13
  *               While generating the batchfile, the wiggle file is already
  *               filtered for low coverage. This results in faster conversion,
  *               smaller files, and also less calculation time for Mutalyzer.
- *               0.3
+ *               0.3     2014-07-10
  *               Fixed problem with skipping the chrom=NC_* header, adding its
  *               positions to the last used chromosome (usually chrY).
+ *               0.31    2015-04-07
+ *               Script doesn't allow for passing more than one argument anymore
+ *               since this feature is never used, and can actually lead to
+ *               confusion.
  *
  *
  * This work is licensed under the Creative Commons
@@ -39,8 +43,8 @@ echo 'WIG2BATCHFILE v.' . $_SETT['version'] . "\n";
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
-if (count($aFiles) < 1) {
-    die('Usage: ' . $sScriptName . ' WIG_FILE1 [WIG_FILE2 [WIG_FILE3 [...]]]' . "\n\n");
+if (count($aFiles) != 1) {
+    die('Usage: ' . $sScriptName . ' WIG_FILE' . "\n\n");
 }
 
 // Check if all files can be read.
@@ -50,6 +54,8 @@ foreach ($aFiles as $sFile) {
     }
 }
 
+// FIXME: None if this is necessary anymore, since the script doesn't allow for
+// passing more than one argument anymore.
 // Find prefix for file(s), to have an output file that matches the name.
 $nPrefixLength = min(array_map('strlen', $aFiles)); // Length of the shortest file name in argument list.
 $sPrefix = substr($aFiles[0], 0, $nPrefixLength); // Limit prefix already to length of shortest file name.
