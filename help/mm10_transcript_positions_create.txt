@@ -12,7 +12,7 @@ some transcripts that show two alignments. These are considered "chimeric"
 alignments and form an exception because the aligner can not choose between
 them. However, none of these transcripts are very important;
 
-$ grep -v "^@" RefseqFASTA_mapped-to-genome_maxpath_2.sam | cut -d "|" -f 4 \
+$ grep -v "^@" RefseqFASTA_mapped-to-genome.sam | cut -d "|" -f 4 \
     | sort | uniq -c | grep -vE "^\s+1\s"
 
 returns:
@@ -115,31 +115,31 @@ returns:
       2 XR_142439.1
       2 XR_168852.1
 
-And they show bad alignment, as you can see by running:
+And they show bad alignment, as you can see by running (selecting NMs only):
 
 $ grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
-    RefseqFASTA_mapped-to-genome_maxpath_2.sam | sort | less -SM
+    RefseqFASTA_mapped-to-genome.sam | sort | less -SM
 
 Lots of clipping on either side; the multiple alignments were often in different
 chromosomes, also.
 
-Searching the SAM files of a full transcriptome alignment for these NMs show
-very little reads mapped to them:
+Searching for these NMs in the SAM files of the alignments of the ribosome
+footprints to the transcriptome show little reads mapped to them:
 
 $ for file in *.sam; do echo $file; grep -E "NM_001004145.2|NM_001013804.1|NM_001013828.2|NM_001039241.2|NM_001104634.1|NM_001163415.1|NM_001199242.1|NM_001199243.1|NM_001199332.1|NM_007849.1|NM_008848.1|NM_009251.1|NM_009744.3|NM_010381.2|NM_011087.1|NM_011093.1|NM_011154.2|NM_021545.1|NM_031156.3|NM_133362.2|NM_177010.3|NM_181729.2" \
     $file | wc -l; done
 
-merged_A1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+A1.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 364
-merged_A2.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+A2.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 361
-merged_A3.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+A3.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 367
-merged_C1.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+C1.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 147
-merged_C2.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+C2.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 213
-merged_C3.fastq.trunc.transcriptome.mappedforward_M25_3col.sam
+C3.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam
 363
 
 Looking at the alignments, there is no way we can choose out of the two. Some-
@@ -154,34 +154,64 @@ and insertions compared to the genome.
 It is not reliably possible to deal with these. So we'll remove them from the
 FASTA sequences and re-align all the reads.
 
-How many transcripts (XM and NM check):
-$ grep -E "(N|X)M_" RefseqFASTA_mapped-to-genome_maxpath_2.sam | cut -f 1,6 | grep -E "D|I" | cut -d "|" -f 4 > problematic_transcripts.txt
+How many transcripts (XM and NM selected):
+$ grep -E "(N|X)M_" RefseqFASTA_mapped-to-genome.sam | cut -f 1,6 | grep -E "D|I" | cut -d "|" -f 4 > problematic_transcripts.txt
+$ wc -l problematic_transcripts.txt
 
-919 transcripts
+919
 
 So how many reads align currently to these transcripts?
-$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts.txt merged_A1.fastq.trunc.transcriptome.sam_mappedforward.sam_mappedforward_M25.sam_6col | wc -l
+$ grep -f problematic_transcripts.txt A1.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam | wc -l
 
 33664
 
 (these reads are not necessarily lost; we could regain them by genome alignment)
 
-So how many of these will we have issues with with the genome alignment, since
-the ATG is too close to an exon/intron border?
 
-$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts.txt ./seq_gene_mouse.md.distance_intron_to_ATG.txt | wc -l
+
+To identify the transcripts with a TIS located within a splice-junction or in
+its close proximity (up to 15nt), use find_distance_to_ATG.php. The script
+requires annotation of exons and the translated region for each transcript.
+These annotations can be downloaded from:
+ftp://ftp.ncbi.nih.gov/genomes/M_musculus/mapview/seq_gene.md.gz
+The script creates two files; one containing transcripts whose TIS cannot be
+easily mapped with standard genome alignment, because of its proximity to a
+splice junction (these transcript are referred to as "problematic transcripts",
+sorted on the distance to the closest intron), and one file with transcripts
+where no UTR is annotated so where the distance to any possible 5' intron is
+unknown. A distance of 15 bases to the TIS is currently the default threshold,
+based on a read length of around 30 nucleotides.
+
+Usage:
+./find_intron_distance_to_ATG.php seq_gene.md
+
+Produces:
+- seq_gene.md.distance_intron_to_ATG.txt
+  Lists all transcripts where the distance of the intron to the TIS is 15
+  nucleotides or less (distance is configurable by editing the file).
+- seq_gene.md.distance_intron_to_ATG_errors.txt
+  Lists all transcripts that have no UTR annotated, thus the 5' distance to a
+  possible intron is unknown. For all these transcripts, the 3' distance is safe
+  (> 15).
+
+
+
+How many of these problematic transcripts will we have issues with the genome
+alignment, since the ATG is too close to an exon/intron border?
+
+$ grep -f problematic_transcripts.txt ./seq_gene_mouse.md.distance_intron_to_ATG.txt | wc -l
 65
 
 How many reads?
 
-$ grep -f ../../GMAP_TranscriptsAlignTOGenome/problematic_transcripts_no_chance_for_genomic_alignment.txt merged_A1.fastq.trunc.transcriptome.sam_mappedforward.sam_mappedforward_M25.sam_6col | wc -l
+$ grep -f problematic_transcripts.txt A1.fastq.trunc.transcriptome_aligned.sam.mappedforward.sam.M25.sam.3col.sam | wc -l
 1362
 
 
 
 All transcripts with mapping issues to the genome are put in a separate file
-created when running the script. This file is named
-transcriptome_alignment_unsupported_transcripts.txt.
+created when running the mm10_transcript_positions_create.php script. This file
+is named transcriptome_alignment_unsupported_transcripts.txt.
 For each transcript, the reason why it was rejected is put in the second column.
 
 The output file mm10_transcript_positions.txt contains the transcript ID, the
