@@ -1,4 +1,5 @@
-RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY AND ALTERNATIVE ORFs
+RIBOSOME PROFILING ANALYSIS FRAMEWORK; de Klerk E., Fokkema I.F.A.C et al (2015).
+ALIGNMENT, TRIPLET PERIODICITY ANALYSIS, DETECTION OF ORFs.
 ================================================================================
 
   This work is licensed under the Creative Commons
@@ -7,70 +8,251 @@ RIBOSOME PROFILING PROJECT, DISCOVERING TRIPLET PERIODICITY AND ALTERNATIVE ORFs
   or send a letter to:
   Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
+  The latest version of the scripts and this README file are available at:
+  http://lumc.github.io/ribosome-profiling-analysis-framework/
+
+================================================================================
 WORKFLOW
+================================================================================
+
+This framework has been developed on Linux and tested on various Linux systems.
+It may run on Windows, but this is not supported. Several provided examples for
+running the scripts on a large number of files are written in Bash and will
+therefore not run on Windows without additional software, like Cygwin.
+This framework requires the installation of PHP-CLI (Command Line Interface),
+available from http://php.net/.
+
+
+
+SUMMARY OF STEPS
 --------------------------------------------------------------------------------
-If you're doing alignment on the genome only, skip to 7).
+- Alignment of ribosome footprint reads
+- Read length distribution of ribosome footprints
+- Creating wiggle files with genomic coordinates from transcriptome alignments
+- Merging transcriptome and genome alignments
+- Obtaining coordinates relative to the annotated ORFs using Mutalyzer
+- Analyzing the triplet periodicity on the harringtonin samples
+- Merging the biological replicates for identifying translation start sites
+- Identifying (alternative) translation start sites and open reading frames
+- Merging the result files to show switches in TIS usage
+- TIS location and motif analysis
 
-1) If you're doing alignment on the transcriptome, you'll get positions based on
-the start of the transcript, instead of the start of the open reading frame.
-The method used here to do this mapping, is Mutalyzer. For this, we first need
-to get from transcriptome positions, to genomic positions. Since the transcrip-
-tome sequences do not always align well to the genome, first the transcriptome
-reference sequence needs to be filtered for transcripts that do not support this
-alignment. For all the other transcripts, you need a file that indicates the
-location of the exons of the transcripts on the genome. The NCBI file is not
-usable, and Mutalyzer can not do this step either. See the help file
-help/mm10_transcript_positions_create.txt for more information.
 
-Usage: ./mm10_transcript_positions_create.php TRANSCRIPTOME_ALIGNMENT_SAM_FILE
+
+SAMPLE NAMING
+--------------------------------------------------------------------------------
+Throughout the documentation of this framework, we provide example commands.
+The examples provided here are from the study of de Klerk E., Fokkema I.F.A.C.
+et al. (2015), in which two different treatments were performed (harringtonin
+and cycloheximide) in two different timepoints, with three biological
+replicates. Different treatments or timepoints are named A to Z, with replicates
+named in numbers (1 to 9). We recommend using similar, or equal, sample naming.
+This framework will read the sample names from the beginning of the file names,
+if separated with an underscore or period.
+Examples of possible FASTQ file names:
+A1_pool7213_TATAT_L002_R1_001.fastq (sample name: A1)
+D3.fastq (sample name: D3)
+I2_ACACAC_L008_R1_001.fastq (sample name: I2)
+
+
+
+REFERENCE SEQUENCES
+--------------------------------------------------------------------------------
+This framework is based on the Mus Musculus mm10 genome assembly but it can also
+be adapted for the Homo Sapiens hg19 and hg38 genome assemblies. Other
+assemblies are currently not supported due to their absence in the Mutalyzer
+tool, which is used to translate genomic coordinates into transcriptomic
+coordinates and vice versa. See https://www.mutalyzer.nl for more information.
+
+This documentation will refer to the genome and transcriptome reference
+sequences based on the mm10 assembly.
+
+The transcriptome reference sequence was downloaded from
+ftp://ftp.ncbi.nlm.nih.gov/refseq/M_musculus/mRNA_Prot/mouse.rna.fna.gz
+Last modified date: 2013-05-08.
+
+If mouse.rna.fna.gz is not available, but the file is split into separate files
+named mouse.1.rna.fna.gz and such, you can combine them using bash with:
+
+for file in mouse.?.rna.fna.gz; do cat $file >> mouse.rna.fna.gz; done
+
+You can also combine the files after extracting them.
+
+The genome reference sequence was downloaded from
+ftp://hgdownload.cse.ucsc.edu/goldenPath/mm10/chromosomes/
+Last modified date: 2012-02-09.
+
+
+
+ALIGNMENT OF RIBOSOME FOOTPRINT READS
+--------------------------------------------------------------------------------
+To combine the power of transcriptome alignment and genomic alignment, reads are
+first mapped to the transcriptome reference, preventing problems with the
+alignment of short reads adjacent or spanning an exon-exon junction, and
+unaligned reads are subsequently mapped to the genome reference. For more
+information about the alignment method, please see de Klerk E., Fokkema I.F.A.C.
+et al (2015).
+
+1) The SAM file obtained after transcriptome alignment reports positions of
+mapped reads relative to the start of the transcript. To be able to merge the
+results of the genome and the transcriptome alignment these positions need to be
+converted to genomic positions. Transcriptome sequences do not always properly
+align to the genome, for instance due to the presence of insertions and
+deletions, chimeric alignments or they align to random chromosomes. Because the
+coordinates of the reads mapped to the transcriptome reference cannot be
+correctly converted to genomic coordinates using transcripts that do not
+properly align, first the transcriptome reference needs to be filtered for these
+transcripts. For the remaining transcripts, the
+mm10_transcript_positions_create.php script is used to create a file that
+indicates the location of the exons of the transcripts on the genome.
+For more information on this script and the alignment, please see the help file:
+help/mm10_transcript_positions_create.txt.
+
+Usage:
+./mm10_transcript_positions_create.php TRANSCRIPTOME_ALIGNMENT_SAM_FILE
 
 Produces:
 - mm10_transcript_positions.txt
-  Contains the genomic locations of all exons of each useful transcript.
+  This file contains the genomic coordinates of all exons for transcripts that
+  align to the genome, excluding random chromosomes, without insertions or
+  deletions or chimeric alignment. These can therefore be used for the
+  transcriptome alignment.
 - transcriptome_alignment_unsupported_transcripts.txt
   Contains all unsupported transcripts and the reasons for rejection.
 
 
 
-2) Also interesting to know is which transcripts might pose problems when
-aligning reads to the genome. These are the transcripts where close to the
-translation start site an intron is located. This information can not be deduced
-from the transcript-to-genome alignment SAM file from step 1, since that does
-not indicate where the translation start site is located. For this, we download
-a file from the NCBI that has the annotation of exons and the translated region
-for each transcript:
-ftp://ftp.ncbi.nih.gov/genomes/M_musculus/mapview/seq_gene.md.gz
-The find_distance_to_ATG.php script extracts this information and creates two
-files; one with problematic transcripts, sorted on the distance to the closest
-intron, and one file with transcripts where no UTR is annotated so where the
-distance to the 5' intron is unknown.
-A distance of 15 bases to the ATG is currently the default threshold.
+2) The unsupported transcripts are then removed from the transcriptome
+reference, using the following bash code:
 
-Usage: ./find_intron_distance_to_ATG.php path_to_seq_gene.md
+cut -f 1 transcriptome_alignment_unsupported_transcripts.txt | grep -v '^#' \
+    > transcriptome_alignment_unsupported_transcripts_list.txt
+tr '\n' '+' < mouse.rna.fna | sed 's/+>/\n>/g' \
+    | grep -vf transcriptome_alignment_unsupported_transcripts_list.txt \
+    | tr '+' '\n' > mouse.rna.fna.no_unsupported.fa
+
+The resulting file (mouse.rna.fna.no_unsupported.fa) is then used to create a
+Bowtie index file suitable for alignment using bowtie.
+
+
+
+3) Before alignment, the adapter sequences need to be removed from the reads.
+There are various tools available which do this. We used a tool developed by
+Henk Buermans:
+(FIXME: ADD: Requires custom Perl script. (Ele: has been published, check with Henk) (Henk is checking now))
+
+Make sure that after this step, your files are named *.trunc.
+
+
+
+4) The following set of commands runs Bowtie to align the reads on the
+transcriptome, stores the unaligned reads, and then runs the genome alignment,
+again using Bowtie.
+For the alignments on the transcriptome, only the forward mapped reads are
+selected, and then the SAM files are filtered again, requiring a minimum of 25
+matching nucleotides per read. This results in smaller SAM files, which can more
+easily be used for downstream analysis.
+Also the SAM files of the alignment on the genome are filtered, also requiring a
+minimum of 25 matching nucleotides per read. Then BAM files are created, which
+are then sorted and converted into mpileup files. The mpileup files are then
+converted to wiggle files, one for each strand. For this last step of the genome
+alignment file processing, use the SageWiggle script, written by Jeroen Laros
+and available here:
+https://git.lumc.nl/lgtc-bioinformatics/ngs-misc/raw/50406e4292be94ae60ebac488c39333d0447b2a0/src/sageWiggle.py
+The MIT license applies to this script:
+https://git.lumc.nl/j.f.j.laros/piletools/raw/master/LICENSE
+
+In the commands below, replace "mouse.rna.fa.no_unsupported.fa.bowtieindex" with
+the correct location of the bowtieindex file of your transcriptome reference
+sequence file, filtered for unsupported transcripts (see step 2).
+Replace "mm10.reference.fa.bowtieindex" with the correct location of the
+bowtieindex file of your genome reference sequence file.
+
+
+
+for file in *.trunc; do bowtie -k 1 -m 20 -n 1 --best --strata -p 8 -S --chunkmbs 2000 --norc --un "${file}.transcriptome_unaligned" mouse.rna.fa.no_unsupported.fa.bowtieindex "$file" "${file}.transcriptome_aligned.sam" 2>> results.transcriptome_alignment.txt; done;
+for file in *.transcriptome_unaligned; do bowtie -k 1 -m 2 -n 1 -p 8 -S --best --strata --chunkmbs 2000 mm10.reference.fa.bowtieindex "$file" "${file}.genome_aligned.sam" 2>> results.transcriptome_unaligned.genome_alignment_mm10.txt; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam; do echo $file; head -n 100 "$file" | grep "^@" > "${file}.M25.sam"; awk '($6 > 25M)' "$file" >> "${file}.M25.sam"; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam.M25.sam; do echo $file; samtools view -bS "$file" > "${file}.bam"; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam.M25.sam.bam; do echo $file; samtools sort "$file" "${file}.sorted"; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam.M25.sam.bam.sorted.bam; do echo $file; samtools index "$file"; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam.M25.sam.bam.sorted.bam; do echo $file; samtools mpileup -d 10000000 "$file" > "${file}.mpileup"; done;
+for file in *.transcriptome_unaligned.genome_aligned.sam.M25.sam.bam.sorted.bam.mpileup; do echo $file; python sageWiggle.py -i "$file" -o "${file}.F.wig5" "${file}.R.wig5"; done;
+for file in *.transcriptome_aligned.sam; do echo $file; awk '($2 == 0)' "$file" > "${file}.mappedforward.sam"; done;
+for file in *.transcriptome_aligned.sam.mappedforward.sam; do echo $file; awk '($6 > 25M)' "$file" > "${file}.M25.sam"; done;
+for file in *.transcriptome_aligned.sam.mappedforward.sam.M25.sam; do echo $file; cut -f 1,3,4 "$file" > "${file}.3col.sam"; done
+
+
+
+5) Multiple scripts have transcript names but need either strand or gene
+information, or vice versa. To provide this, download a file from the UCSC table
+browser, listing the transcripts, the strand and the genes.
+
+To build this list:
+- Open the UCSC table browser: http://genome.ucsc.edu/cgi-bin/hgTables
+- Select genome, assembly, track: "RefSeq Genes".
+- Table: "refGene", output format: "selected fields from primary and related
+  tables".
+- Click "get output".
+- On this next page, select "name", "strand" and "name2" in the field list, and
+  click "get output".
+- Save in a file and sort. On linux, this can be done with the sort command.
+- In this README, this file is referred to as mm10_gene_list.txt.
+
+
+
+READ LENGTH DISTRIBUTION OF RIBOSOME FOOTPRINTS
+--------------------------------------------------------------------------------
+6) The SAM files generated by the alignment of the ribosome profiling reads can
+be used to collect read length distribution data. A simple bash script that
+calculates the read length distribution for reads aligning to the transcriptome
+(NM and NR separately) and reads aligning to the genome, is described in
+help/read_length_distribution.txt.
+
+The read length distribution can also be calculated per gene. For that, use the
+get_read_length_per_gene.php script. The script takes gene IDs in an input file
+and determines the read length distribution for its transcripts per sample, from
+both transcriptome and genome alignment SAM files. It requires the
+mm10_gene_list.txt file to see which transcripts belongs to which gene, the
+mm10_transcript_positions.txt file to check the strand and the positions of the
+transcripts, and the input SAM files.
+
+Usage:
+./get_read_length_per_gene.php FILE_WITH_GENES_TO_ANALYZE mm10_gene_list \
+    mm10_transcript_positions.txt SAM_FILE [SAM_FILE [SAM_FILE [...]]]
+
+Example:
+./get_read_length_per_gene.php genes_to_analyze.txt mm10_gene_list.txt \
+    mm10_transcript_positions.txt *.M25.sam
 
 Produces:
-- seq_gene.md.distance_intron_to_ATG.txt
-  Lists all transcripts where the distance of the intron to the ATG is 15 or
-  less (distance is configurable by editing the file).
-- seq_gene.md.distance_intron_to_ATG_errors.txt
-  Lists all transcripts that have no UTR annotated, thus the 5' distance to an
-  intron is unknown. For all these transcripts, the 3' distance is safe (> 15).
+- For each transcript of the given genes, one
+  gene_transcript_read_length_distribution.txt file, with the read lengths in
+  the first column, and the number of reads with this length per sample in the
+  next columns.
+- One summary file, ALL_ALL_read_length_distribution.txt, with all read lengths
+  summed up.
 
 
 
-3) After doing the alignment of the ribosome profiling reads on the transcrip-
-tome, unsupported transcripts removed, you end up with SAM files.
-These SAM files can be used to collect read length distribution data. The bash
-script usable for that, is described in help/read_length_distribution.txt. This
-README will continue describing the steps to follow for triplet periodicity and
-ORF analysis, regardless of whether the read length distribution has been
+This README will continue describing the steps to follow for triplet periodicity
+and ORF analysis, regardless of whether the read length distribution has been
 analyzed or not.
 
-The SAM files are first packed, reducing them in size and grouping the reads
-together to generate a file that sums the coverage per transcript per position.
+
+
+GROUPING READS FROM SAM FILES OBTAINED AFTER TRANSCRIPTOME ALIGNMENT
+AND BASIC STATISTICS
+--------------------------------------------------------------------------------
+7) Reads in the SAM files are first grouped together to generate a file that
+sums the coverage per transcript per position.
 For this, use the pack_sam_files.php file.
 
-Usage: ./pack_sam_files.php SAM_FILE1 [SAM_FILE2 [SAM_FILE3 [...]]]
+Usage:
+./pack_sam_files.php SAM_FILE [SAM_FILE [SAM_FILE [...]]]
+
+Example:
+./pack_sam_files.php *.transcriptome_aligned.*3col.sam
 
 Produces:
 - For each given SAM file, a SAM.packed file.
@@ -80,18 +262,21 @@ Produces:
 
 
 
-4) The packed SAM files can be used to run some statistics. Currently available
-is packed_sam2coverage_per_gene.php.
+8) The packed SAM files can be used to run some statistics, using
+packed_sam2coverage_per_gene.php.
 
-Usage: ./packed_sam2coverage_per_gene.php path_to_mm10_gene_list.txt \
-           PACKED_SAM_FILE1 [ PACKED_SAM_FILE2 [ ... ]]
+Usage:
+./packed_sam2coverage_per_gene.php mm10_gene_list.txt \
+    PACKED_SAM_FILE [PACKED_SAM_FILE [...]]
+
+Example:
+./packed_sam2coverage_per_gene.php mm10_gene_list.txt *.packed
 
 Produces:
-- One file which name depends on the given SAM files, ending in the suffix
-  .coverage_per_gene.txt, with per SAM file, mentioned which transcripts can not
+- One file which name depends on the given SAM file(s), ending in the suffix
+  .coverage_per_gene.txt, containing (per SAM file) which transcripts can not
   be matched to a gene, listing the top 5 unknown transcripts based on their
-  coverage and finally, a large table where the samples are presented as columns
-  and on each line the genes are given with the coverage in each sample. The
+  coverage, and a table containing coverage per gene per sample. The
   genes are sorted on total coverage in all samples together.
 
 Other statistics can be run directly on the packed SAM files, for instance how
@@ -99,15 +284,21 @@ many reads are mapped to non-coding reads.
 
 
 
-5) The packed SAM files are used to generate Wiggle files. For this, use the
-packed_sam2wiggle.php script, which needs the transcript positions file descri-
-bed in 1).
+CREATING WIGGLE FILES WITH GENOMIC COORDINATES FROM TRANSCRIPTOME ALIGNMENTS
+--------------------------------------------------------------------------------
+9) The packed SAM files are used to generate wiggle files. For this, use the
+packed_sam2wiggle.php script, which needs the transcript positions file created
+in 1).
 
-Usage: ./packed_sam2wiggle.php TRANSCRIPT_POSITIONS_FILE \
-           PACKED_SAM_FILE1 [PACKED_SAM_FILE2 [PACKED_SAM_FILE3 [...]]
+Usage:
+./packed_sam2wiggle.php mm10_transcript_positions.txt \
+    PACKED_SAM_FILE [PACKED_SAM_FILE [PACKED_SAM_FILE [...]]]
+
+Example:
+./packed_sam2wiggle.php mm10_transcript_positions.txt *.packed
 
 Produces:
-- 4 Wiggle files per SAM file;
+- 4 wiggle files per SAM file;
   + F unfiltered,
   + F filtered (NR and XR removed),
   + R unfiltered,
@@ -115,86 +306,141 @@ Produces:
 
 
 
-6) Optionally, if genome alignment has been done as well as transcriptome align-
-ment, the Wiggle files from both alignments can be merged together. This is done
-using the "wiggelen" package written by Martijn Vermaat and Jeroen Laros.
+MERGING TRANSCRIPTOME AND GENOME ALIGNMENTS
+--------------------------------------------------------------------------------
+10) Merging the wiggle files from the alignment on the transcriptome and the
+alignment on the genome is done using the "wiggelen" package written by Martijn
+Vermaat and Jeroen Laros. The merge_wigglefiles.sh script is a wrapper around
+the wiggelen package.
 For detailed information, see the help file help/merge_wigglefiles.txt.
 
-
-
-7) Wiggle files are converted to Mutalyzer position converter batch files using
-the wig2batchfile.php script.
-
-Usage: ./wig2batchfile.php WIG_FILE
+Usage:
+./merge_wigglefiles.sh
+(it should be run in the directory where all the wiggle files reside)
 
 Produces:
-- One Mutalyzer batch input file. If multiple Wiggle files are passed as argu-
-  ments, the script will generate one big Mutalyzer batch input file. However,
-  please note that the analysis script does not support working with one large
-  Mutalyzer result file, so it means you'll have to split it again after running
-  Mutalyzer.
+- 4 wiggle files per sample, using the transcriptome and genome alignment wiggle
+  files for each created file:
+  + F unfiltered,
+  + F filtered (NR and XR removed),
+  + R unfiltered,
+  + R filtered (NR and XR removed).
 
 
 
-8) The position converter batch files are manually loaded into Mutalyzer:
+OBTAINING COORDINATES RELATIVE TO THE ANNOTATED ORFs USING MUTALYZER
+--------------------------------------------------------------------------------
+11) To translate the genomic coordinates to coordinates relative to the
+annotated Translation Initiation Site (TIS), we use the Mutalyzer service.
+Mutalyzer's position converter has a batch-feature that allows for the upload of
+large files containing genomic postions. Through email you will be notified when
+your batch job is done, after which you can download the result file.
+Wiggle files are converted to Mutalyzer position converter batch files using the
+wig2batchfile.php script. Please note, that since Mutalyzer is a service aimed
+at genetic variation, all positions are converted into genetic variants.
+Create batch files for the filtered wiggle files only! This will save
+considerable amount of running time for Mutalyzer. The filtered wiggle files
+contain positions of reads mapping to coding transcripts only. Positions mapping
+to non-coding transcripts won't be processed with this analysis framework.
+
+Usage:
+./wig2batchfile.php WIGGLE_FILE
+
+Example:
+for file in *.filtered.wig5; do ./wig2batchfile.php "$file"; done
+
+Produces:
+- One Mutalyzer batch input file.
+
+
+
+12) The position converter batch files are manually loaded into Mutalyzer:
 https://mutalyzer.nl/batchPositionConverter
 or
 https://test.mutalyzer.nl/batchPositionConverter
-(this test installation is slightly faster because it doesn't have much traffic,
- but it doesn't support emailing you the link to the results)
+
+Do not run more than a few files at a time. It will considerably slow down the
+process, and will increase the chance of failures, after which you might need to
+re-upload your file. When one file is still being uploaded, you should not
+attempt to upload another one as well. Wait until Mutalyzer reports it has
+uploaded the file, and starts to work on it.
+
+The test installation is slightly faster because it doesn't have much traffic,
+but since it's a testing installation, there is no guarantee that it is always
+online.
 
 
 
-9) When done, the results are downloaded from Mutalyzer. If you're not sure
+13) When done, download the result files from Mutalyzer. If you're not sure
 anymore which results file belongs to which batchfile, you can match these files
 by using the match_mutalyzer_output_to_batchfile.sh script.
 
 Usage:
-./match_mutalyzer_output_to_batchfile.sh <MUTALYZER_OUTPUT_FILES> <BATCH_FILES>
+./match_mutalyzer_output_to_batchfile.sh \
+    MUTALYZER_RESULTS_FILE [MUTALYZER_RESULTS_FILE [...]] \
+    BATCH_FILE [BATCH FILE [...]]
+
+Example:
+./match_mutalyzer_output_to_batchfile.sh batch-job-* *mutalyzer_batchfile.txt
 
 This script will rename the Mutalyzer results files according to the batch input
 files.
 
-The results files can be analyzed using the analyze_triplet_periodicity.php
-script, that checks the triplet periodicity and shows if the ribosomes have
-indeed been stopped at the start sites.
+
+
+ANALYZING THE TRIPLET PERIODICITY ON THE HARRINGTONIN SAMPLES
+--------------------------------------------------------------------------------
+14) Now that we have the ribosome footprint reads mapped to the transcriptome,
+relative to the annotated TIS, we can analyze the triplet periodicity.
+For samples treated with harringtonin, the analyze_triplet_periodicity.php
+script shows if the ribosomes have indeed been stopped at the start sites, and
+you can check the general triplet periodicity of the reads. Look for a peak
+around the -12 position, and check the triplet periodicity in the %1, %2 and %3
+positions, which contain the sum of the coverage of all first, second and third
+bases of the annotated codons, respectively.
+For samples treated with cycloheximide, the script is used to show the general
+triplet periodicity in the entire coding region. Check the triplet periodicity
+in the %1, %2 and %3 positions, which contain the sum of the coverage of all
+first, second and third bases of the annotated codons, respectively.
 
 Usage:
-./analyze_triplet_periodicity.php MUTALYZER_FILE WIGGLE_FILE GENE_LIST_FILE STRAND
+./analyze_triplet_periodicity.php MUTALYZER_RESULTS_FILE WIGGLE_FILE \
+    mm10_gene_list.txt STRAND
+(Valid values for STRAND: +, -, F and R)
 
 Example:
-./analyze_triplet_periodicity.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
-  mm10_gene_list.txt F > F.wig5.periodicity.txt
-(Valid values for Strand: +, -, F and R)
+./analyze_triplet_periodicity.php \
+    A1.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt \
+    A1.merged_wiggle.F.filtered.wig5 mm10_gene_list.txt F \
+    > A1.merged_wiggle.F.filtered.wig5.periodicity.txt
 
 Produces:
 - Direct output to the screen (which should then be saved to a file if needed)
   with detailed statistics about the mapping of the positions to the
   transcriptome by Mutalyzer, followed by the list of positions relative to the
-  translation start site, and the total coverage for each position. Of the posi-
-  tions in the coding region, only the first 6 are shown individually. All posi-
-  tions in the coding region, including the positions up to 15 bases upstream of
-  the coding region, are grouped by their location in the codon (first, second
-  and third base), and displayed as positions %1, %2 and %3 respectively, with
-  the summed coverages to assess the overall triplet periodicity.
+  TIS, and the total coverage for each position. Of the positions in the coding
+  region, only the first 6 are shown individually. All positions in the coding
+  region, including the positions up to 15 bases upstream of the coding region,
+  are grouped by their location in the annotated codons (first, second and third
+  base), and displayed as positions %1, %2 and %3 respectively, with the summed
+  coverages to assess the overall triplet periodicity.
   Positions starting with an asterisk (*) are positions in the 3' UTR. The given
   number is the relative distance to the stop codon: *1 is the first base after
   the stop codon.
 
 The script does the following things:
-+ Read out the coverage information from the Wiggle file
++ Read out the coverage information from the wiggle file.
 + Read the gene list to find out which genes (transcripts, actually) are on
-  which strand
+  which strand.
 + Read the Mutalyzer result file to see which locations map to which
-  transcripts, determining the position within the transcript
-  * Filter low coverage positions (< 3)
-  * Mappings on non-coding transcripts are ignored
-  * Mappings on transcripts on the other strand are ignored
-  * Transcripts not in the gene list are ignored and reported (so they could be
-    fixed == added to the gene info file)
-  * Filter positions without transcript mapping
-  * Filter positions with only intronic mapping
-  * Filter positions too far from translation start or stop sites (> 500bp)
+  transcripts, determining the position within the transcript.
+  * Filter low coverage positions (< 3).
+  * Mappings on non-coding transcripts are ignored.
+  * Mappings on transcripts on the other strand are ignored.
+  * Transcripts not in the gene list are ignored and reported.
+  * Filter positions without transcript mapping.
+  * Filter positions with only intronic mapping.
+  * Filter positions too far from translation start or stop sites (> 500bp).
   * The remaining possible mappings are processed.
     Please note that the "coding region" is defined as the region starting at
     -15 nucleotides from the ATG to the end of the open reading frame.
@@ -205,49 +451,89 @@ The script does the following things:
     - If there are 5' UTR and 3' UTR mappings, but none in the coding
       region, we assume an intergenic situation and if one of the two
       positions is clearly closer to the coding region than the
-      other (> 100bp), then the closest position is picked.
+      other (> 100bp closer), then the closest position is picked.
       If not, the position is discarded, and reported to the user.
     - After this, all mappings are counted by their coverage and
       reported.
 
-Possible to do:
-- Multiple 5' UTR *or* multiple 3' UTR mappings are all counted if these
-  are the only mappings. Perhaps we should pick the closest, like as if
-  both UTR mappings were present.
+
+
+MERGING THE BIOLOGICAL REPLICATES FOR IDENTIFYING TRANSLATION START SITES
+--------------------------------------------------------------------------------
+15) To increase the statistical power and to lower background signal, merge the
+biological replicates of the harringtonin-treated samples. Both the wiggle files
+as well as the Mutalyzer result files, need to be merged.
+Examples, assuming A and C are harringtonin samples:
+
+Merging the wiggle files:
+
+for sample in A C;
+do
+  for strand in F R;
+  do
+    wiggelen merge ${sample}?.merged_wiggle.${strand}.filtered.wig5 \
+      | sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' \
+      > merged_${sample}.merged_wiggle.${strand}.filtered.wig5;
+    rm ${sample}?.merged_wiggle.${strand}.filtered.wig5.idx;
+  done
+done
+
+Merging the Mutalyzer files:
+
+for sample in A C;
+do
+  for strand in F R;
+  do
+    head -n 1 ${sample}1.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt \
+      > merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt
+    grep -h "^chr" ${sample}?.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt \
+      | sort -g | uniq \
+      >> merged_${sample}.merged_wiggle.${strand}.filtered.wig5_mutalyzer_batchfile_results.txt
+  done
+done
+
+The order of the variants in the Mutalyzer results file is sorted differently,
+but this has no effect on the following analysis results.
 
 
 
-10) Now, it's time to try and find alternative Open Reading Frames (ORFs). The
+IDENTIFYING (ALTERNATIVE) TRANSLATION START SITES AND OPEN READING FRAMES
+--------------------------------------------------------------------------------
+16) Now, it's time to try and find alternative Open Reading Frames (ORFs). The
 find_ORFs.php script tries to identify "peaks" in the coverage pattern as
 alternative open reading frame starts, depending on the coverage of the
 surrounding region.
+NOTE: Run this script on the merged replicates of harringtonin samples, only.
 
 Usage:
-./find_ORFs.php <MUTALYZER_RESULTS> <WIGGLE_FILE> <GENE_LIST_FILE> <STRAND>
+./find_ORFs.php MUTALYZER_RESULTS WIGGLE_FILE mm10_gene_list.txt STRAND
+(Valid values for STRAND: +, -, F and R)
 
 Example:
-./find_ORFs.php F.wig5_mutalyzer_batchfile_results.txt F.wig5 \
-  mm10_gene_list.txt F
-(Valid values for Strand: +, -, F and R)
+./find_ORFs.php \
+  merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt \
+  merged_A.merged_wiggle.F.filtered.wig5 mm10_gene_list.txt F
 
 Produces:
 - *.ORF_analysis_results_stats.txt
   Statistics on the ORF finding run; information on the loaded gene list file
   and wiggle file, mentions the number of positions left out on each filtering
-  step, and mentions the number of genes left with found translation start
+  step, and mentions the number of genes left with found translation initiation
   sites.
 - *.ORF_analysis_results.txt
   The results file shows, per gene, the number of positions found, the number
-  actually analyzed as candidate peaks, and the number of TSSs found. These are
+  actually analyzed as candidate peaks, and the number of TISs found. These are
   then reported with the genomic position, the coverage, and per transcript, the
-  position relative to the transcript.
+  position relative to the annotated TIS on the transcript.
 - *.ORF_analysis_results_after_cutoff.txt
-  This file has the same format of the results file, but shows only TSSs found
-  in the annotated coding region, at least 5000 bases from the annotated TSS.
+  This file has the same format of the results file, but shows only TISs found
+  in the annotated coding region, at least 5000 bases from the annotated TIS.
   (the value of 5000 can be configured in the script)
+  For more information on this cutoff, please see de Klerk E., Fokkema I.F.A.C.
+  et al (2015).
 
 The script does the following things:
-+ Read out the coverage information from the Wiggle file
++ Read out the coverage information from the wiggle file
 + Read the gene list to find out which genes (transcripts, actually) are on
   which strand
 + Read the Mutalyzer result file to see which locations map to which
@@ -269,12 +555,14 @@ The script does the following things:
       also available, are discarded.
     - After this, all positions are stored, per gene, for the next step.
 + Peaks are searched for by walking through the positions, starting upstream.
-  Each position, with at least a coverage of 10, is analyzed.
+  Each position, with at least a coverage of 20, is analyzed.
+  (Please note, that 20 has been chosen for analysis of merged biological
+    replicates. Otherwise, 10 was used.)
   * Its coverage should be higher than that of the positions located 3, 6, 9, 12
     and 15 nucleotides upstream of it.
   * Its coverage should be at least as high as that of the positions located 1
     and 2 nucleotides downstream of it.
-  * It should show a triplet periodicity and a clear "harringtonine pattern":
+  * It should show a triplet periodicity and a clear "harringtonin pattern":
     - The first nucleotide of the analyzed codon should have a coverage of at
       least 60% of the total coverage of that codon (configurable setting).
     - The following 5 codons should also not have a higher maximum coverage than
@@ -282,66 +570,35 @@ The script does the following things:
     - If any of the following 5 codons have a maximum coverage higher than 10%
       of the coverage of the position we're analyzing, that codon must not show
       a conflicting triplet periodicity pattern (see first two points above).
-  * If all these rules apply, the position is stored as a possible ORF start,
-    and the analysis is continued 5 codons downstream, but again per nucleotide
-    and thus allowing ORF start sites in any frame.
-  * We currently assume that this will automatically filter out the background
-    found at the end of some transcripts. This background is possible on
-    transcripts with a length of 5K or higher, since harringtonine was applied
-    for 5 minutes and translation speed is about 5.6 codons per second according
-    to the literature (5.6 * 3 * 5 * 60 = 5040 nucleotides).
-+ Per gene, from all its found possible ORF starts, we will take the one with
-  the highest coverage as a reference, and discard any other candidate ORF
-  starting points that do not have at least a coverage (on that position) of 10%
-  of the reference (highest candidate).
-+ All remaining candidate ORF starting points will be reported.
-+ Problem: If two ORF starts are apart by less than 5 codons, this procedure
-  will either not detect one of the two, or reject both because of each other's
-  presence (most likely in the case of two ORFs in a different frame). We can
-  decrease the required distance of 5 codons, if we believe that ORFs are not
-  detected because of this.
-+ Problem: Because of the background found in some longer transcripts, we will
-  probably not pick up any ORF start sites within the affected region that use a
-  different frame than the background, because the conflicting triplet
-  periodicity pattern makes the algorithm reject the candidate. Analyzing the
-  pattern in the background separately may in fact detect these ORF start sites.
-  Please note that ORF start sites in any frame within 5KB of the primary ORF
-  can still be detected, because they are not affected by the background noise.
-+ Problem: Mutalyzer describes positions after the stop codon with an asterisk
-  followed by the distance to the stop codon, e.g. *3. Since this script does
-  not know the transcript lengths at the moment, it is unaware of the distance
-  between a position in the coding region (e.g. 4623) and a position after the
-  stop codon. Therefore, the checks of the coverage of the surrounding positions
-  of a candidate translation start site will be incorrect or not be possible
-  when this site is located around the annotated stop codon.
-  This may cause false positives around the translation stop site, but not false
-  negatives.
+  * If all these rules apply, the position is stored as a possible TIS.
++ Per gene, from all its found possible TISs, we will take the one with the
+  highest coverage as a reference, and discard any other candidate TISs that do
+  not have at least a coverage (on that position) of 10% of the reference
+  (highest candidate).
++ All remaining candidate TISs will be reported.
 + Genes that have no candidate peaks left, are ignored.
-+ For all genes remaining, the positions of the candidate ORF start sites are
-  reported relative to all known transcripts of the gene in question. The
-  original number of positions with high coverage (>10) is mentioned along with
-  the number of remaining candidate ORF start sites.
++ For all genes remaining, the positions of the candidate TISs are reported
+  relative to all known transcripts of the gene in question. The original number
+  of positions with high coverage (>10) is mentioned along with the number of
+  remaining candidate TISs.
   Results are displayed as: genomic position, coverage, position on transcript.
   The last column may be repeated, depending on the number of known transcripts.
 + Additionally, a separate file reports all candidate peaks found at a position
-  higher than 5Kb from a known ORF start site, so they can easily be checked
-  more thoroughly if they are false positives.
-
-Possible to do:
-- Actually implement the filtering in the coding region? Is the proposed method
-  OK?
-- Filtering in the coding region against background measured per frame, so we
-  can find alternative frames?
+  higher than 5Kb from a known TIS, so they can easily be checked more
+  thoroughly if they are false positives.
 
 
 
-11) Now, the ORF files need to be grouped, per strand (F and R). The
-merge_ORF_files.php script merges the files for you into one summary file, but
-does not take care of the strands, so you need to make sure you don't mix
-forward and reverse files with each other.
+MERGING THE RESULT FILES TO SHOW SWITCHES IN TIS USAGE
+--------------------------------------------------------------------------------
+17) To be able to statistically compare the possible switches in TIS usage, the
+results of the ORF analyses need to be combined into one file, per strand (F and
+R). The merge_ORF_files.php script merges the files for you into one summary
+file, but does not take care of the strands, so you need to make sure you don't
+mix forward and reverse files with each other.
 
 Usage:
-./merge_ORF_files.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
+./merge_ORF_files.php ORF_FILE [ORF_FILE [ORF_FILE [...]]]
 
 Example:
 ./merge_ORF_files.php *.F.*.ORF_analysis_results.txt
@@ -355,76 +612,78 @@ the sample IDs are the only differences between the input file names. The sample
 IDs are also used in the headers of the output.
 
 While grouping, it ignores the positions of the peaks on the transcripts. It
-only reports the chromosomal position, per sample the coverage, and then as a
-last column the gene name.
+reports the chromosomal position, per sample the coverage, and then the gene
+name.
+Every peak that has been called in at least one sample, is displayed.
 
-NOTE: When this script reports a coverage of 0, it simply means the position was
-not recognized as a translation start site in that sample. The actual measured
+NOTE: If the original wiggle files of the individual biological replicates are
+present in the same directory, these are all read out while merging the ORF
+analysis result files, and the resulting file will report the individual
+coverages of all biological replicates, per found TIS peak.
+If the wiggle files are not found, the coverages are taken from the ORF analysis
+result files, which means when a coverage of 0 is reported, it simply means the
+position was not recognized as a TIS in that sample. The actual measured
 coverage in that sample may not at all be 0.
 
 Example output:
 # Chromosome    Position    A1    A2    A3    C1    C2    C3    Gene
-chr1            4857920     32    14    27     0     0    10    Tcea1
-chr1            4857929     24     0    24     0     0     0    Tcea1
+chr1            4857920     32    14    27     6     3    10    Tcea1
+chr1            4857929     24     6    24     2     4     6    Tcea1
 
 
 
-12) To see if we can lose background signal, we're repeating step 10, but with
-the A and C samples merged. To do this, we are running the find_ORFs.php on the
-merged Wiggle files and the Mutalyzer files, using a lower threshold (20 over 3
-samples instead of 10 on 1 sample).
-
-!!! Be sure to edit these settings in the script before running the analysis !!!
-
-We merge the files like so:
-
-Merging the Wiggle files:
-wiggelen merge merged_A?.merged_wiggle.F.filtered.wig5 | \
-  sed 's/^\([0-9]\+\) \([0-9]\+\)/\1\t\2/' \
-  > merged_A.merged_wiggle.F.filtered.wig5
-
-Merging the Mutalyzer files:
-head -n 1 \
-  merged_A1.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt \
-  > merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt
-grep -h "^chr" \
-  merged_A?.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt | \
-  sort -g | uniq \
-  >> merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt
-
-Please note that the order of the variants in the Mutalyzer results file is
-not sorted properly, but the find_ORFs script fixes that.
-
-Then the find_ORFs.php script is run:
-Example:
-./find_ORFs.php \
-  merged_A.merged_wiggle.F.filtered.wig5_mutalyzer_batchfile_results.txt \
-  merged_A.merged_wiggle.F.filtered.wig5 mm10_gene_list.txt F
-(Valid values for Strand: +, -, F and R)
-
-Then the results are merged:
-./merge_ORF_files.php \
-  merged_?.merged_wiggle.F.filtered.wig5.ORF_analysis_results.txt
-./merge_ORF_files.php \
-  merged_?.merged_wiggle.R.filtered.wig5.ORF_analysis_results.txt
-
-The merge_ORF_files.php script has been modified to detect it's running on the
-results of merged samples, and it will attempt to find the original Wiggle files
-to be able to show the original coverages of the individual samples, on each of
-the found positions.
+(FIXME: Add information on statistical analysis? Or otherwise, point at the paper or other supplementary script?)
+(Put code here for this analysis. Ele will look for how to make the Rdata file.)
+Ele will give specifics on R version and on how to generate the RData file.
 
 
 
-13) For some statistics on where in the genes the found TISs are, as well as TIS
+library(lme4.0)
+load("TIS_analysis.Rdata")
+data_samples<-data_small[,2:7]
+Myotubes <- grepl("C", names(data_samples))
+coeff_summary_fit_col3_col4 <- list()
+for(i in 1: length(list_data.multinom))
+{
+print(i)
+mydata <- list_data.multinom [[i]]
+loc <- mydata[,1]
+N <- nrow( mydata)
+M <- 6
+weight <- colSums(mydata[,2:7])
+if ((!weight[1] && !weight[2] && !weight[3]) || (!weight[4] && !weight[5] && !weight[6])) {
+    print("No coverage available in at least one condition")
+    next
+}
+dat <- as.vector(as.matrix(mydata[,2:7]))
+loc_all <- rep(loc, M)
+Myotubes_all <- rep(Myotubes, each=N)
+weight_all <- rep(weight, each=N)
+subj_all <- factor(rep(colnames(mydata[,2:7]), each=N))
+fit<- lmer( dat/weight_all ~ 0 + Myotubes_all*loc_all - Myotubes_all + (loc_all|subj_all), family=binomial(), weight=weight_all)
+fit0 <-  lmer( dat/weight_all ~ 0+loc_all + (loc_all|subj_all), family=binomial(), weight=weight_all)
+coeff_summary_fit_col3_col4[[i]] <- coef(summary(fit))[(1+nrow(coef(summary(fit)))/2):nrow(coef(summary(fit))),3:4]
+}
+sink("coeff_summary_fit_col3_col4.csv")
+coeff_summary_fit_col3_col4
+sink()
+
+
+
+
+
+TIS LOCATION AND MOTIF ANALYSIS
+--------------------------------------------------------------------------------
+18) For some statistics on where in the genes the found TISs are, as well as TIS
 motif analysis and reporting of the sequence between each 5'UTR TIS and the
-annotated TIS, we can analyze the ORF analysis results files of the merged
+annotated TIS, we analyze the ORF analysis results files of the merged
 replicates using the generate_stats_peaks_per_location.php script. It takes all
 ORF analysis results files, both the results after the cutoff as the ones
 before, and sums up the number of peaks found per location: 5' UTR, annotated
 TIS, coding, 3' UTR, or multiple.
 "Multiple" means that the TIS location was mapping to multiple transcripts, and
 in at least two of these, the location was different. An exception here is when
-one of the locations where the TIS maps to, is "annotated_TIS". Then it is
+one of the locations where the TIS maps to, is "annotated_TIS". Then, it is
 assumed that the other transcripts with other positions are not the translated
 transcripts.
 
@@ -441,7 +700,7 @@ they represent a read that lies in the 3'UTR. This can not be detected however,
 because we don't know the length of the coding region of the transcripts.
 
 To be able to report the TIS codon motifs and the sequence between each 5'UTR
-TIS and the annotated TIS, the script downloads the RefSeq sequences of the
+TIS and the annotated TIS, this script downloads the RefSeq sequences of the
 transcripts that the read was aligned to automatically from the NCBI website,
 using the URL format:
 http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NM_007386.2.gb&rettype=gb
@@ -455,7 +714,7 @@ check if the directory can be made writable. Otherwise create an empty directory
 and set its name in the settings in the script source code.
 
 Usage:
-./generate_stats_peaks_per_location.php ORF_FILE1 [ORF_FILE2 [ORF_FILE3 [...]]]
+./generate_stats_peaks_per_location.php ORF_FILE [ORF_FILE [ORF_FILE [...]]]
 
 Example:
 ./generate_stats_peaks_per_location.php *ORF_analysis_results*
@@ -508,9 +767,9 @@ Produces:
   Any messages that might be reported in the status column, are explained above
   in the description of the previous file.
 
-The script is using the given file names to filter out the statistics files
-generated by the find_ORFs.php script. Its own result files, as well as all
-files containing 'ORF_analysis_results_stats', are ignored automatically. Files
+The script is checking the names of input files to automatically ignore its own
+result files, the statistics files generated by the find_ORFs.php script and
+merged ORF files generated by the merge_ORF_files.php script. Input file names
 need to contain the strand information ('.F.' or '.R.') and must end with either
 'ORF_analysis_results.txt' or 'ORF_analysis_results_after_cutoff.txt'. Files are
 grouped by their file name's prefix (until the strand information). As such, per
@@ -522,59 +781,62 @@ and the script will stop processing.
 
 
 
+19) The result files of the generate_stats_peaks_per_location.php script contain
+the motif sequences of every found TIS. The code to analyze the motif sequences
+used is below. If needed, change the first line to use the sample names you wish
+to analyze.
 
-
-ADDITIONAL SCRIPTS
---------------------------------------------------------------------------------
-1) mrna_sequence_report.php
-
-Purpose:
-Takes labels and genomic positions from a file manually generated, imports the
-transcriptomic coordinates from the ORF analysis results file(s), fetches the
-sequence of the TSS until the end of the transcript, translates the sequence,
-and reports the protein sequence until the first stop.
-
-Usage:
-./mrna_sequence_report.php POSITIONS_FILE [PEAKS_CLASSIFICATION_FILE [...]]
-
-Example:
-./mrna_sequence_report.php list_for_TPPanalysis.txt
-or
-./mrna_sequence_report.php list_for_TPPanalysis.txt \
-    merged_A.merged_wiggle.ORF_analysis_results.peaks_classification.txt \
-    merged_C.merged_wiggle.ORF_analysis_results.peaks_classification.txt
-
-If no specific peaks classification files are passed as arguments, all files in
-the current directory ending in '.ORF_analysis_results.peaks_classification.txt'
-are parsed.
-
-Input file format example:
->RPL7_atg_outofframe
-chr1:16103318
->RPL34_aag_inframe
-chr3:130728824
->RPL34_aga_outofframe
-chr3:130728823
-
-Note that not all position requires a header; more positions per header are
-allowed.
+for sample in A C;
+do
+  echo "Analyzing sample ${sample}:" > merged_${sample}.motif_analysis_results.txt;
+  for category in 5UTR unannotated_5UTR annotated_TIS coding 3UTR multiple;
+  do
+    if [[ $category == '5UTR' ]];
+    then
+      TOTAL=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | grep -vE "(unannotated|no)_5UTR" | cut -f 11 | grep -v '^#' | grep -v '^$' | wc -l`;
+      TOTAL_COVERAGE=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | grep -vE "(unannotated|no)_5UTR" | cut -f 6,11 | grep -E "^[0-9]+\s...$" | grep -v '^#' | cut -f 1 | paste -sd+ | bc`;
+    elif [[ $category == 'unannotated_5UTR' ]];
+    then
+      TOTAL=`grep -E "(unannotated|no)_5UTR" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep -v '^#' | grep -v '^$' | wc -l`;
+      TOTAL_COVERAGE=`grep -E "(unannotated|no)_5UTR" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 6,11 | grep -E "^[0-9]+\s...$" | grep -v '^#' | cut -f 1 | paste -sd+ | bc`;
+    else
+      TOTAL=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep -v '^#' | grep -v '^$' | wc -l`;
+      TOTAL_COVERAGE=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 6,11 | grep -E "^[0-9]+\s...$" | grep -v '^#' | cut -f 1 | paste -sd+ | bc`;
+    fi
+    echo -e "${category}\tTotal TISs:\t${TOTAL}\tTotal coverage:\t${TOTAL_COVERAGE}";
+    echo -e "Motif\tTISs\tCoverage\tPercTISs\tPercCoverage";
+    if [[ $category == '5UTR' ]];
+    then
+      MOTIFS=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | grep -vE "(unannotated|no)_5UTR" | cut -f 11 | grep -v '^#' | grep -v '^$' | sort | uniq`;
+    elif [[ $category == 'unannotated_5UTR' ]];
+    then
+      MOTIFS=`grep -E "(unannotated|no)_5UTR" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep -v '^#' | grep -v '^$' | sort | uniq`;
+    else
+      MOTIFS=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep -v '^#' | grep -v '^$' | sort | uniq`;
+    fi
+    for motif in $MOTIFS;
+    do
+      if [[ $category == '5UTR' ]];
+      then
+        TISs=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | grep -vE "(unannotated|no)_5UTR" | cut -f 11 | grep "^${motif}$" | wc -l`;
+        COVERAGE=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | grep -vE "(unannotated|no)_5UTR" | cut -f 6,11 | grep -E "^[0-9]+\s${motif}$" | cut -f 1 | paste -sd+ | bc`;
+      elif [[ $category == 'unannotated_5UTR' ]];
+      then
+        TISs=`grep -E "(unannotated|no)_5UTR" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep "^${motif}$" | wc -l`;
+        COVERAGE=`grep -E "(unannotated|no)_5UTR" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 6,11 | grep -E "^[0-9]+\s${motif}$" | cut -f 1 | paste -sd+ | bc`;
+      else
+        TISs=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 11 | grep "^${motif}$" | wc -l`;
+        COVERAGE=`grep "${category}" merged_${sample}.merged_wiggle.ORF_analysis_results.peaks_classification.txt | cut -f 6,11 | grep -E "^[0-9]+\s${motif}$" | cut -f 1 | paste -sd+ | bc`;
+      fi
+      PERC_TISs=`echo "scale=2; $TISs * 100 / $TOTAL" | bc`;
+      PERC_COVERAGE=`echo "scale=2; $COVERAGE * 100 / $TOTAL_COVERAGE" | bc`;
+      echo -e "${motif}\t${TISs}\t${COVERAGE}\t${PERC_TISs}%\t${PERC_COVERAGE}%";
+    done
+  done >> merged_${sample}.motif_analysis_results.txt;
+done
 
 Produces:
-- One file (input file name with suffix '.mRNA_sequence_report.txt'), with the
-  used peaks classification files in the headers, and the following format:
-
-# /home/ifokkema/scripts/labj/eleonora/ribosome_profiling/mrna_sequence_report.php v.0.3
-# Imported transcriptomic positions from merged_A.merged_wiggle.ORF_analysis_results.peaks_classification.txt
-# Imported transcriptomic positions from merged_C.merged_wiggle.ORF_analysis_results.peaks_classification.txt
-
-# PeakPosGenomic	RefSeqID	PosTrans+12	DNASeqToSTOP	DNASeq	ProtSeqToSTOP
->RPL7_atg_outofframe
-chr1:16103318	NM_011291.5	218	atgagaaggcaaagcactatcacaaggagtacaggcagatgtaccgcactgagattcggatggccaggatggcaaggaaagctggcaacttctatgtgcccgcagaaccaaagctggcctttgtcatcagaattcgaggtatcaatggagtaa	atgagaaggcaaagcactatcacaaggagtacaggcagatgtaccgcactgagattcggatggccaggatggcaaggaaagctggcaacttctatgtgcccgcagaaccaaagctggcctttgtcatcagaattcgaggtatcaatggagtaagcccaaaggttcgtaaggttctgcagctccttcgtcttcgacagatcttcaatggcacctttgttaagctcaacaaggcttcaattaacatgctgcggattgtggagccatacattgcatgggggtaccccaacctgaagtcagtaaacgagctcatctacaagcgaggctacggcaaaatcaacaagaagcggattgccttgacagataattccttgattgctcggtctcttggtaagtttggcatcatctgcatggaggatctaattcatgagatctatacagtcgggaaacgcttcaaggaagcaaataacttcctgtggcccttcaagttatcttccccacgaggtgggatgaagaaaaagacaactcactttgtagaaggtggagatgctggcaacagggaagaccagataaacaggcttattagacggatgaactaaggtgtcacccattgtatttttgtaatctggtcagttaataaacagtcacagcttggcaaattgaaaaaa	MRRQSTITRSTGRCTALRFGWPGWQGKLATSMCPQNQSWPLSSEFEVSME*
->RPL34_aag_inframe
-chr3:130728824	NM_001005859.2	205	aagacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtgaaagtcttgaaggcacaagcacagagtcagaaagcaaaatag	aagacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtgaaagtcttgaaggcacaagcacagagtcagaaagcaaaatagatatgcacattttttaagtaataaaaatcaagacttga	KTQKHVSRAYGGSMCAKCVRDRIKRAFLIEEQKIVVKVLKAQAQSQKAK*
->RPL34_aga_outofframe
-chr3:130728823	NM_001005859.2	206	agacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtga	agacacagaagcacgtcagcagggcctatggcggctccatgtgtgccaagtgtgtccgtgacaggatcaagcgggctttccttattgaggagcagaaaatcgttgtgaaagtcttgaaggcacaagcacagagtcagaaagcaaaatagatatgcacattttttaagtaataaaaatcaagacttga	RHRSTSAGPMAAPCVPSVSVTGSSGLSLLRSRKSL*
-
-
-
-
+- Per sample, one file containing per TIS category (5UTR, unannotated_5UTR,
+  annotated_TIS, coding, 3UTR, multiple): the analyzed motif, the number of TISs
+  with this motif, the total coverage of TISs with this motif, the percentage of
+  TISs with this motif, and the percentage of reads on TISs with this motif.
