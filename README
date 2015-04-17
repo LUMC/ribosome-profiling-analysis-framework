@@ -136,7 +136,7 @@ Bowtie index file suitable for alignment using bowtie.
 
 
 3) Before alignment, the adapter sequences need to be removed from the reads.
-There are various tools available which do this.
+There are various tools available which do this, such as cutadapt.
 Make sure that after this step, your files are named *.trunc.
 
 
