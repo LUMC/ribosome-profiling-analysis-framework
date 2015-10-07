@@ -151,11 +151,7 @@ also filtered, requiring a minimum of 25 nucleotides per read. SAM files from
 the genome alignment are converted to BAM files, which are then sorted and
 converted into mpileup files. The mpileup files are then converted to 5' end
 wiggle files, one for each strand. For the creation of 5' end wiggle files from
-the genome alignment, use the SageWiggle script, written by Jeroen Laros and
-available here:
-https://git.lumc.nl/lgtc-bioinformatics/ngs-misc/raw/50406e4292be94ae60ebac488c39333d0447b2a0/src/sageWiggle.py
-The MIT license applies to this script:
-https://git.lumc.nl/j.f.j.laros/piletools/raw/master/LICENSE
+the genome alignment, use the SageWiggle.py script included in this framework.
 
 In the commands below, replace "mouse.rna.fa.no_unsupported.fa.bowtieindex" with
 the correct location of the bowtie index file of your transcriptome reference
