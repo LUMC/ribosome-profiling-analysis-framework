@@ -642,11 +642,7 @@ A1    A2    A3    C1    C2    C3
 Tcea1	32    14    27     6     3    10
 Tcea1	24     6    24     2     4     6
 
-FIXME: Put code here for this analysis. Ele will look for how to make the Rdata file.
-Ele will give specifics on R version and on how to generate the RData file.
-Are we done here now?
-
-
+Below is the R code used for the analysis.
 
 library(lme4.0)
 load("TIS_analysis.Rdata")
