@@ -21,6 +21,8 @@ running the scripts on a large number of files are written in Bash and will
 therefore not run on Windows without additional software, like Cygwin.
 This framework requires the installation of PHP-CLI (Command Line Interface),
 available from http://php.net/.
+This framework has been developed and tested using PHP 5.4 and up, but may work
+with earlier versions.
 
 
 
