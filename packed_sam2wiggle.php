@@ -9,11 +9,31 @@
  * unfiltered, and R filtered.
  *
  * Created     : 2013-08-21
- * Modified    : 2013-09-19
- * Version     : 0.4
+ * Modified    : 2016-09-12
+ * Version     : 0.5
  *
- * Copyright   : 2013-2015 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2013-2016 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.5     2016-09-12
+ *               Added link to inc-lib-json.php to be compatible with PHP
+ *               versions < 5.2.0.
+ *               0.4     2013-09-19
+ *               Now produces both unfiltered and filtered wiggle files, per
+ *               strand. The filtered wiggle file contains no coverage on NR or
+ *               XR transcripts, since these don't have an open reading frame
+ *               anyway.
+ *               0.3     2013-09-19
+ *               Fixed bug; The track line was repeated for every chromosome,
+ *               instead of just one per file.
+ *               Also, if the transcript position file was not passed as an
+ *               argument, the script just took the first packed sam file,
+ *               ignored the fact that no transcripts were found, and continued
+ *               creating empty wiggle files. Now, the script halts when no
+ *               valid transcript positions file is passed.
+ *               0.2     2013-09-18
+ *               0.1     2013-08-21
+ *               First version.
  *
  *
  * This work is licensed under the Creative Commons
@@ -26,7 +46,7 @@
 
 $_SETT =
     array(
-        'version' => '0.4',
+        'version' => '0.5',
         'suffix' => '.wig5',
     );
 
@@ -35,6 +55,10 @@ echo 'PackedSam2Wiggle v.' . $_SETT['version'] . "\n" .
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
+$sCWD = dirname($sScriptName);
+if (!function_exists('json_encode') && is_readable($sCWD . '/inc-lib-json.php')) {
+    require $sCWD . '/inc-lib-json.php'; // For PHP <= 5.2.0.
+}
 if (count($aFiles) < 2) {
     die('Usage: ' . $sScriptName . ' TRANSCRIPT_POSITION_FILE PACKED_SAM_FILE1 [PACKED_SAM_FILE2 [...]]' . "\n\n");
 }
