@@ -14,11 +14,17 @@
  * It also creates a summary file, with all read lengths summed up.
  *
  * Created     : 2015-01-13
- * Modified    : 2015-01-15
- * Version     : 0.1
+ * Modified    : 2015-09-12
+ * Version     : 0.2
  *
- * Copyright   : 2015 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2015-2016 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.2     2016-09-12
+ *               Added link to inc-lib-json.php to be compatible with PHP
+ *               versions < 5.2.0.
+ *               0.1     2015-01-15
+ *               First version.
  *
  *
  * This work is licensed under the Creative Commons
@@ -31,7 +37,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.2',
         'output_file_format' => '{{GENE}}_{{TRANSCRIPT}}_read_length_distribution.txt',
         'terminal_width' => 100,
     );
@@ -41,6 +47,10 @@ echo 'GetReadLengthPerTranscript v.' . $_SETT['version'] . "\n";
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
+$sCWD = dirname($sScriptName);
+if (!function_exists('json_encode') && is_readable($sCWD . '/inc-lib-json.php')) {
+    require $sCWD . '/inc-lib-json.php'; // For PHP <= 5.2.0.
+}
 if (count($aFiles) < 4) {
     die('Usage: ' . $sScriptName . ' FILE_WITH_GENES_TO_ANALYSE GENE_LIST_FILE TRANSCRIPT_POSITION_FILE SAM_FILE1 [SAM_FILE2 [SAM_FILE3 [...]]]' . "\n\n");
 }

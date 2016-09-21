@@ -8,11 +8,20 @@
  * as the first argument.
  *
  * Created     : 2013-08-22
- * Modified    : 2013-09-05
- * Version     : 0.1
+ * Modified    : 2016-09-12
+ * Version     : 0.3
  *
- * Copyright   : 2013-2015 Leiden University Medical Center; http://www.LUMC.nl/
+ * Copyright   : 2013-2016 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
+ *
+ * Changelog   : 0.3     2016-09-12
+ *               Added link to inc-lib-json.php to be compatible with PHP
+ *               versions < 5.2.0.
+ *               0.2     2016-09-09
+ *               Updated preg_match_all() call to be compatible with PHP
+ *               versions < 5.4.0.
+ *               0.1     2013-09-05
+ *               First version.
  *
  *
  * This work is licensed under the Creative Commons
@@ -25,7 +34,7 @@
 
 $_SETT =
     array(
-        'version' => '0.1',
+        'version' => '0.3',
         'output' => 'mm10_transcript_positions.txt',
         'unsupported_transcripts_output' => 'transcriptome_alignment_unsupported_transcripts.txt',
         'terminal_width' => 100,
@@ -36,6 +45,10 @@ echo 'CreateTranscriptPositions v.' . $_SETT['version'] . "\n" .
 
 $aFiles = $_SERVER['argv'];
 $sScriptName = array_shift($aFiles);
+$sCWD = dirname($sScriptName);
+if (!function_exists('json_encode') && is_readable($sCWD . '/inc-lib-json.php')) {
+    require $sCWD . '/inc-lib-json.php'; // For PHP <= 5.2.0.
+}
 if (count($aFiles) != 1) {
     die('Usage: ' . $sScriptName . ' SAM_FILE' . "\n\n");
 }
@@ -131,7 +144,7 @@ while ($sLine = fgets($fIn)) {
          */
     }
 
-    if ($sTranscript && preg_match('/^chr([XYM]|\d{1,2})$/', $sChromosome) && $nPosition && preg_match_all('/^(\d+[MIDNSHP])+$/', $sCIGAR)) {
+    if ($sTranscript && preg_match('/^chr([XYM]|\d{1,2})$/', $sChromosome) && $nPosition && preg_match_all('/^(\d+[MIDNSHP])+$/', $sCIGAR, $aTMP)) {
         // All seem OK. Store basic info first.
         $sChromosome = substr($sChromosome, 3);
         $aData[$sTranscript] = array($sChromosome, $sStrand);
