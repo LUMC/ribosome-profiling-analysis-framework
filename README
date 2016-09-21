@@ -129,7 +129,7 @@ reference, using the following bash code:
 cut -f 1 transcriptome_alignment_unsupported_transcripts.txt | grep -v '^#' \
     > transcriptome_alignment_unsupported_transcripts_list.txt
 tr '\n' '+' < mouse.rna.fna | sed 's/+>/\n>/g' \
-    | grep -vf transcriptome_alignment_unsupported_transcripts_list.txt \
+    | grep -vFf transcriptome_alignment_unsupported_transcripts_list.txt \
     | tr '+' '\n' > mouse.rna.fna.no_unsupported.fa
 
 The resulting file (mouse.rna.fna.no_unsupported.fa) is then used to create a
