@@ -8,8 +8,8 @@
  * per sample.
  *
  * Created     : 2014-01-08
- * Modified    : 2014-10-08
- * Version     : 0.61
+ * Modified    : 2016-12-16
+ * Version     : 0.7
  *
  * Copyright   : 2014-2015 Leiden University Medical Center; http://www.LUMC.nl/
  * Programmer  : Ing. Ivo F.A.C. Fokkema <I.F.A.C.Fokkema@LUMC.nl>
@@ -34,6 +34,9 @@
  *               0.61    2015-02-27
  *               Script halted when finding merged ORF analyses, now it silently
  *               ignores them.
+ *               0.7    2016-12-16
+ *               The NCBI has stopped using GI numbers, so use the protein ID to
+ *               link the transcript to the CDS.
  *
  *
  * This work is licensed under the Creative Commons
@@ -657,20 +660,21 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                     // Re-parse the NM, find the CDS.
                                     // No need to check if it exists, we just already parsed it.
                                     $sNM = file_get_contents($_SETT['NM_cache_dir'] . $aTIS['RefSeqID'] . '.gb');
-                                    $nCDSID = '';
-                                    if (!preg_match('/^\s+\/db_xref="GI:(\d+)"$/m', $sNM, $aRegs)) {
-                                        // Weird... never seen an NM without an GI ID.
+                                    $sCDSID = '';
+                                    if (!preg_match('/^\s+\/protein_id="([A-Z_0-9.]+)"$/m', $sNM, $aRegs)) {
+                                        // 2016-12-16; 0.7; Matching on NP ID, which should always be in the file.
+                                        // Previously, we were using GI IDs, but the NCBI has stopped using them.
                                         die("\n" .
-                                            'Failed to get CDS GI ID for ' . $aTIS['RefSeqID'] . "\n");
+                                            'Failed to get Protein ID for ' . $aTIS['RefSeqID'] . "\n");
                                     }
-                                    $nCDSID = $aRegs[1];
+                                    $sCDSID = $aRegs[1];
 
                                     // Check CDS start in NC.
                                     $nCDSstartNC = $nCDSendNC = 0;
-                                    if (preg_match_all('/\s+CDS\s+(?:join\()?(\d+)\.\.(\d+)(?:(?:,\s*\d+\.\.>?\d+)*\))?\n.+\s+\/db_xref="GI:(\d+)"\n/sU', $sNC, $aCDSs)) {
+                                    if (preg_match_all('/\s+CDS\s+(?:join\()?(\d+)\.\.(\d+)(?:(?:,\s*\d+\.\.>?\d+)*\))?\n.+\s+\/protein_id="([A-Z_0-9.]+)"\n/sU', $sNC, $aCDSs)) {
                                         // Loop CDSs to find the correct one.
                                         foreach (array_keys($aCDSs[0]) as $i) {
-                                            if ($aCDSs[3][$i] == $nCDSID) {
+                                            if ($aCDSs[3][$i] == $sCDSID) {
                                                 $nCDSstartNC = $aCDSs[1][$i];
                                                 $nCDSendNC = $aCDSs[2][$i];
                                                 break;
@@ -678,7 +682,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
                                         }
                                     }
                                     if (!$nCDSstartNC) {
-                                        //var_dump($aTIS, $aCDSs, $nCDSID);
+                                        //var_dump($aTIS, $aCDSs, $sCDSID);
                                         // Note that this can happen, when the NC slice downloaded contains a new transcript version. Quickest way to fix, is to find the CDS
                                         // (using the NP, or using the GI from the CDS of the correct NM version) and replace the GI.
                                         // Also, make sure there is no > or < in the starting locations (or should we handle that?).
