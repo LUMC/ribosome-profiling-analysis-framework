@@ -37,6 +37,8 @@
  *               0.7    2016-12-16
  *               The NCBI has stopped using GI numbers, so use the protein ID to
  *               link the transcript to the CDS.
+ *               Added support for CDSs starting or ending with just one base in
+ *               the first or last exon, respectively.
  *
  *
  * This work is licensed under the Creative Commons
@@ -671,7 +673,7 @@ foreach ($aSamples as $sSampleID => $aSample) {
 
                                     // Check CDS start in NC.
                                     $nCDSstartNC = $nCDSendNC = 0;
-                                    if (preg_match_all('/\s+CDS\s+(?:join\()?(\d+)\.\.(\d+)(?:(?:,\s*\d+\.\.>?\d+)*\))?\n.+\s+\/protein_id="([A-Z_0-9.]+)"\n/sU', $sNC, $aCDSs)) {
+                                    if (preg_match_all('/\s+CDS\s+(?:join\()?(\d+)(?:\.\.(\d+))?(?:(?:,\s*\d+(?:\.\.>?\d+)?)*\))?\n.+\s+\/protein_id="([A-Z_0-9.]+)"\n/sU', $sNC, $aCDSs)) {
                                         // Loop CDSs to find the correct one.
                                         foreach (array_keys($aCDSs[0]) as $i) {
                                             if ($aCDSs[3][$i] == $sCDSID) {
