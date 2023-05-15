@@ -68,7 +68,7 @@ This framework is based on the Mus Musculus mm10 genome assembly but it can also
 be adapted for the Homo Sapiens hg19 and hg38 genome assemblies. Other
 assemblies are currently not supported due to their absence in the Mutalyzer
 tool, which is used to translate genomic coordinates into transcriptomic
-coordinates and vice versa. See https://www.mutalyzer.nl for more information.
+coordinates and vice versa. See https://v2.mutalyzer.nl for more information.
 
 The transcriptome reference sequence was downloaded from
 ftp://ftp.ncbi.nlm.nih.gov/refseq/M_musculus/mRNA_Prot/mouse.rna.fna.gz
@@ -358,9 +358,7 @@ Produces:
 
 
 12) The position converter batch files are manually loaded into Mutalyzer:
-https://mutalyzer.nl/batchPositionConverter
-or
-https://test.mutalyzer.nl/batchPositionConverter
+https://v2.mutalyzer.nl/batchPositionConverter
 
 Do not run more than a few files at a time. It will considerably slow down the
 process, and will increase the chance of failures, after which you might need to
